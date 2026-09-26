@@ -20,7 +20,8 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          # wrangler 4.x Node >= 22 istiyor
+          node-version: 24
 
       - name: Bağımlılıkları kur
         run: npm install
