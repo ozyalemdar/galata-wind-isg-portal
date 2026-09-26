@@ -1213,9 +1213,9 @@ function isoMetaFields(){return [
 ];}
 function openIsoForm(rec){
   const fields=isoMetaFields();
-  if(!rec)fields.push({k:'revNo',t:'Revizyon no',req:true},{k:'revTarih',t:'Revizyon tarihi',type:'date',req:true},{k:'yuklemeTarihi',t:'Yükleme tarihi',type:'date',req:true},{k:'dosya',t:'Doküman dosyası',type:'file',req:true,wide:true,accept:'.pdf,.doc,.docx,.xls,.xlsx,image/*',help:'Prototipte en fazla 140 KB.'});
+  if(!rec)fields.push({k:'revNo',t:'Revizyon no',req:true},{k:'revTarih',t:'Revizyon tarihi',type:'date',req:true},{k:'yuklemeTarihi',t:'Yükleme tarihi',type:'date',req:true},{k:'dosya',t:'Doküman dosyası (varsa)',type:'file',wide:true,accept:'.pdf,.doc,.docx,.xls,.xlsx,image/*',help:'İsteğe bağlı. Prototipte en fazla 140 KB.'});
   openForm({title:rec?'Doküman bilgilerini düzenle':'ISO 45001 dokümanı ekle',
-    intro:rec?'':'<div class="note info">İlk revizyon bilgilerini ve dosyasını da bu formda girin. Sonraki revizyonlar için kaydı açıp "Yeni revizyon yükle" düğmesini kullanın.</div>',
+    intro:rec?'':'<div class="note info">İlk revizyon bilgilerini (varsa dosyasıyla birlikte) bu formda girin. Sonraki revizyonlar için kaydı açıp "Yeni revizyon yükle" düğmesini kullanın.</div>',
     fields,values:rec||{durum:'Yürürlükte',revNo:'0',revTarih:today(),yuklemeTarihi:today()},submit:rec?'Kaydet':'Dokümanı ekle',
     onSubmit:async v=>{
       const meta={kod:v.kod,ad:v.ad,madde:v.madde,kategori:v.kategori,sorumlu:v.sorumlu,durum:v.durum,gozdenGecirme:v.gozdenGecirme,aciklama:v.aciklama};
@@ -1226,7 +1226,7 @@ function openIsoForm(rec){
 }
 function openIsoRevForm(rec){
   openForm({title:`${rec.kod||rec.ad}: yeni revizyon yükle`,
-    fields:[{k:'revNo',t:'Revizyon no',req:true},{k:'revTarih',t:'Revizyon tarihi',type:'date',req:true},{k:'yuklemeTarihi',t:'Yükleme tarihi',type:'date',req:true},{k:'dosya',t:'Doküman dosyası',type:'file',req:true,wide:true,accept:'.pdf,.doc,.docx,.xls,.xlsx,image/*'},{k:'aciklama',t:'Revizyon açıklaması',type:'textarea',wide:true,rows:2,ph:'ör. Yasal değişiklik nedeniyle güncellendi'}],
+    fields:[{k:'revNo',t:'Revizyon no',req:true},{k:'revTarih',t:'Revizyon tarihi',type:'date',req:true},{k:'yuklemeTarihi',t:'Yükleme tarihi',type:'date',req:true},{k:'dosya',t:'Doküman dosyası (varsa)',type:'file',wide:true,accept:'.pdf,.doc,.docx,.xls,.xlsx,image/*',help:'İsteğe bağlı. Prototipte en fazla 140 KB.'},{k:'aciklama',t:'Revizyon açıklaması',type:'textarea',wide:true,rows:2,ph:'ör. Yasal değişiklik nedeniyle güncellendi'}],
     values:{revNo:nextRevNo(rec.revizyonlar),revTarih:today(),yuklemeTarihi:today()},submit:'Revizyonu yükle',
     onSubmit:async v=>{const rev={no:v.revNo,revTarih:v.revTarih,yuklemeTarihi:v.yuklemeTarihi,dosya:v.dosya,aciklama:v.aciklama,yukleyen:S.user.username};
       await patchRec('iso45001',rec.id,{revizyonlar:[...(rec.revizyonlar||[]),rev]},'Yeni revizyon',`${rec.kod||rec.ad}: Rev. ${v.revNo}`);toast('Yeni revizyon yüklendi.');}});
