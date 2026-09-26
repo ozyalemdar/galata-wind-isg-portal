@@ -30,4 +30,6 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          # package-lock.json ile aynı sürüm; belirtilmezse action eski 3.x sürümünü kurar
+          wranglerVersion: "4.141.0"
           command: deploy
