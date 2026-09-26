@@ -414,6 +414,12 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 .panel,.tbl-wrap,.kpis{border-radius:10px}
 .panel{border-color:var(--line-soft)}
 .kbgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:28px}
+.yol{border:1px solid var(--line-soft);border-radius:var(--r-s);background:var(--surface2);padding:12px;margin:12px 0}
+.yol ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.yol li{display:flex;align-items:center;gap:6px;min-width:0;overflow-wrap:anywhere}
+.yol li .ar{color:var(--muted);flex:none}
+.yol li:last-child{font-weight:700}
+.yol .full{display:block;margin:10px 0;font-size:12px;color:var(--muted);overflow-wrap:anywhere}
 .kb{border-radius:14px;border:1px solid var(--line-soft);padding:22px 20px 20px;box-shadow:0 2px 12px rgba(16,24,40,.06);display:flex;flex-direction:column;gap:10px;min-width:0;background:var(--surface)}
 .t0{background:linear-gradient(135deg,#F2F7EC 0%,#FAFAF8 70%)}
 .t1{background:linear-gradient(135deg,#FBEFEE 0%,#FBF8F7 70%)}
@@ -899,6 +905,16 @@ VIEWS.kkd=()=>{
 function flsel(page,key,label,icon,opts,allText){const v=F(page)[key]||'';return `<label class="fl"><span>${esc(label)}</span><select id="f-${page}-${key}" data-f="${page}.${key}">${allText!=null?`<option value="">${esc(allText)}</option>`:''}${opts.map(o=>{const x=typeof o==='object'?o:{v:o,t:o};return `<option value="${esc(x.v)}" ${String(v)===String(x.v)?'selected':''}>${esc(x.t)}</option>`}).join('')}</select></label>`;}
 const extOf=n=>String(n||'').split('.').pop().toUpperCase();
 const dokTip=r=>r.link?'link':r.yol?'yol':'dosya';
+/* Ortak klasör yolu: doğrulama ve görsel gidiş yolu (Doküman Merkezi ve ISO 45001) */
+function checkYol(v){v.yol=String(v.yol||'').trim().replace(/^"(.*)"$/,'$1');
+  if(v.yol&&!/^(\\\\[^\\]+\\[^\\]+|[A-Za-z]:\\)/.test(v.yol)){const e=new Error('yol');e.userMsg='Klasör yolu \\\\sunucu\\klasör ya da sürücü harfiyle (ör. S:\\) başlamalı.';throw e;}}
+function yolParca(p){const m=String(p).match(/^(\\\\[^\\]+|[A-Za-z]:)\\?(.*)$/);return m?[m[1],...m[2].split('\\').filter(Boolean)]:[String(p)];}
+function yolHtml(r,coll){const ps=yolParca(r.yol);
+  return `<div class="yol"><div class="sec" style="margin-top:0">Dosyaya gidiş yolu</div>
+  <ol aria-label="Klasör yolu">${ps.map((s,i)=>`<li style="padding-left:${i*18}px">${i?'<span class="ar" aria-hidden="true">└</span>':''}${ic(i===ps.length-1&&/\.[a-z0-9]{2,5}$/i.test(s)?'file':'folder')}<span>${esc(s)}</span></li>`).join('')}</ol>
+  <code class="full">${esc(r.yol)}</code>
+  <button class="btn pri" data-a="copypath" data-coll="${coll}" data-id="${r.id}">${ic('copy')}Yolu kopyala</button>
+  <small class="hint" style="display:block;margin-top:6px">Dosya Gezgini'ni açın (Win+E), adres çubuğuna yapıştırın (Ctrl+V) ve Enter'a basın.</small></div>`;}
 function kbCard(r,i){const t=dokTip(r),isLink=t==='link',isYol=t==='yol';const f=r.dosya?.[0];const kb=f?(f.veri.length*0.75/1024).toFixed(2).replace('.',','):null;
   return `<article class="kb t${i%3}"><div class="kbh"><span class="kbi">${ic(isLink?'ext':isYol?'folder':'docfile')}</span><span class="pill ${isLink||isYol?'':'doc'}">${isLink?'Link':isYol?'Klasör':'Dosya'}</span></div>
   <h3>${esc(r.ad)}</h3>
@@ -952,7 +968,7 @@ VIEWS.iso=()=>{
     {t:'Yükleme tarihi',r:r=>fmtD(latestRev(r).yuklemeTarihi)},
     {t:'Gözden geçirme',r:isoGGBadge},
     {t:'Durum',r:r=>badge(r.durum)},
-    {t:'',r:r=>latestRev(r).dosya?.length?`<button class="btn sm" data-a="isodl" data-id="${r.id}" title="Son revizyonu indir">${ic('download')}İndir</button>`:'<span class="sm">Dosya yok</span>'}
+    {t:'',r:r=>latestRev(r).dosya?.length?`<button class="btn sm" data-a="isodl" data-id="${r.id}" title="Son revizyonu indir">${ic('download')}İndir</button>`:r.yol?`<button class="btn sm" data-a="copypath" data-coll="iso45001" data-id="${r.id}">${ic('copy')}Yolu kopyala</button>`:'<span class="sm">Dosya yok</span>'}
   ],rows,{open:'iso',empty:all.length?'Filtrelere uyan doküman yok.':'Henüz ISO 45001 dokümanı eklenmedi.'})}`;
 };
 
@@ -1055,6 +1071,7 @@ iso(r){const canIsg=isRole('isg');const revs=[...(r.revizyonlar||[])].map((v,i)=
   return {no:esc(r.kod||''),title:r.ad,tags:`${badge(r.durum)}${r.madde?` <span class="badge b-info">${esc(r.madde)}</span>`:''}`,
    body:`${kv([['Kategori',esc(r.kategori||'—')],['Sorumlu',esc(nameOf(r.sorumlu))],['Güncel revizyon',`Rev. ${esc(lr.no??'0')}, ${fmtD(lr.revTarih)}`],['Son yükleme',fmtD(lr.yuklemeTarihi)],['Gözden geçirme',isoGGBadge(r)]])}
    ${r.aciklama?`<p class="prose">${esc(r.aciklama)}</p>`:''}
+   ${r.yol?yolHtml(r,'iso45001'):''}
    <div class="sec">Revizyon geçmişi (${revs.length})</div>
    ${revs.length?table([
      {t:'Rev.',r:v=>`<b>${esc(v.no)}</b>`},
@@ -1066,7 +1083,7 @@ iso(r){const canIsg=isRole('isg');const revs=[...(r.revizyonlar||[])].map((v,i)=
    ],revs):'<p class="hint">Revizyon kaydı yok.</p>'}
    ${histFor(r.id)}`,
    foot:canIsg?`<button class="btn pri" data-a="isorev" data-id="${r.id}">${ic('upload')}Yeni revizyon yükle</button><button class="btn" data-a="editiso" data-id="${r.id}">${ic('edit')}Bilgileri düzenle</button><button class="btn danger" data-a="del" data-coll="iso45001" data-id="${r.id}">${ic('trash')}Sil</button>`:''};},
- dokuman(r){return {no:esc(r.kod||''),title:r.ad,tags:`<span class="badge">${esc(r.kategori)}</span>`,body:`${kv([['Süreç',esc(r.surec||'—')],['Revizyon',r.versiyon===''?'Henüz yayınlanmadı':esc(r.versiyon||'0')],['Revizyon tarihi',fmtD(r.yayinTarihi)],['Hazırlayan',esc(nameOf(r.olusturan))],['Son güncelleme',fmtDT(r.guncelleme)]])}${r.aciklama?`<p class="prose">${esc(r.aciklama)}</p>`:''}${r.link?`<p><a class="btn pri" href="${esc(r.link)}" target="_blank" rel="noopener noreferrer">${ic('ext')}Bağlantıyı aç</a></p>`:''}${r.yol?`<p class="hint">Ortak klasör yolu:</p><p><code class="no" style="word-break:break-all">${esc(r.yol)}</code></p><p><button class="btn pri" data-a="copypath" data-id="${r.id}">${ic('copy')}Yolu kopyala</button></p>`:''}${r.dosya?.length?atts(r.dosya,r,'dokumanlar'):(r.link||r.yol?'':'<p class="hint">Bu doküman için dosya yüklenmemiş.</p>')}${histFor(r.id)}`,
+ dokuman(r){return {no:esc(r.kod||''),title:r.ad,tags:`<span class="badge">${esc(r.kategori)}</span>`,body:`${kv([['Süreç',esc(r.surec||'—')],['Revizyon',r.versiyon===''?'Henüz yayınlanmadı':esc(r.versiyon||'0')],['Revizyon tarihi',fmtD(r.yayinTarihi)],['Hazırlayan',esc(nameOf(r.olusturan))],['Son güncelleme',fmtDT(r.guncelleme)]])}${r.aciklama?`<p class="prose">${esc(r.aciklama)}</p>`:''}${r.link?`<p><a class="btn pri" href="${esc(r.link)}" target="_blank" rel="noopener noreferrer">${ic('ext')}Bağlantıyı aç</a></p>`:''}${r.yol?yolHtml(r,'dokumanlar'):''}${r.dosya?.length?atts(r.dosya,r,'dokumanlar'):(r.link||r.yol?'':'<p class="hint">Bu doküman için dosya yüklenmemiş.</p>')}${histFor(r.id)}`,
    foot:isRole('isg')?`<button class="btn pri" data-a="editdok" data-id="${r.id}">${ic('edit')}Yeni revizyon / düzenle</button><button class="btn danger" data-a="del" data-coll="dokumanlar" data-id="${r.id}">${ic('trash')}Sil</button>`:''};},
  duyuru(r){return {no:fmtD(r.tarih),title:r.baslik,tags:badge(r.oncelik||'Normal'),body:`<p class="prose">${esc(r.icerik)}</p><p class="hint">Yayınlayan: ${esc(nameOf(r.olusturan))}${r.hedef?', hedef: '+esc(r.hedef):''}</p>${atts(r.ekler,r,'duyurular')}`,
    foot:isRole('isg')?`<button class="btn" data-a="editduyuru" data-id="${r.id}">${ic('edit')}Düzenle</button><button class="btn danger" data-a="del" data-coll="duyurular" data-id="${r.id}">${ic('trash')}Kaldır</button>`:''};},
@@ -1199,7 +1216,7 @@ function openEgitimForm(rec){openForm({title:rec?'Eğitimi düzenle':'Eğitim pl
 function openKkdForm(rec){openForm({title:rec?'Zimmeti düzenle':'KKD zimmeti ekle',fields:[{k:'u',t:'Çalışan',type:'select',options:userOpts,req:true},{k:'ekipman',t:'Ekipman',type:'select',options:KKD_TURLERI,req:true},{k:'beden',t:'Beden / numara'},{k:'seriNo',t:'Seri / lot no'},{k:'teslimTarihi',t:'Teslim tarihi',type:'date',req:true},{k:'yenileme',t:'Yenileme tarihi',type:'date'},{k:'durum',t:'Durum',type:'select',options:KKD_DURUM,req:true},{k:'not',t:'Not',type:'textarea',wide:true,rows:2}],
   values:rec||{teslimTarihi:today(),durum:'Teslim Bekliyor'},onSubmit:async v=>{await saveRec('kkd',rec?.id,v,`${v.ekipman}, ${nameOf(v.u)}`);if(!rec&&v.durum==='Teslim Bekliyor')mail([userBy(v.u)?.eposta],`KKD teslim onayınız bekleniyor: ${v.ekipman}`);toast('Zimmet kaydedildi.');}});}
 function openDokForm(rec){openForm({title:rec?'Dokümanı güncelle':'Doküman yükle',fields:[{k:'ad',t:'Doküman adı',req:true,wide:true},{k:'kod',t:'Doküman kodu',ph:'ör. İSG-PR-004'},{k:'surec',t:'İlgili süreç',type:'select',options:SUREC_LIST},{k:'kategori',t:'Kategori',type:'select',options:DOK_KAT,req:true},{k:'versiyon',t:'Revizyon no'},{k:'yayinTarihi',t:'Yayın tarihi',type:'date'},{k:'link',t:'Harici bağlantı (varsa)',type:'url',ph:'https://',wide:true,help:'Doldurulursa kart "Link" olarak görünür ve İncele bağlantıyı yeni sekmede açar.'},{k:'yol',t:'Ortak klasör yolu (varsa)',ph:'\\\\sunucu\\ISG\\Prosedürler\\İSG.P1 İSG Yönetim Prosedürü.docx',wide:true,help:'Herkesin erişebildiği ağ klasöründeki yol. Kartta "Yolu kopyala" düğmesi çıkar; kullanıcı yolu Dosya Gezgini adres çubuğuna yapıştırır.'},{k:'aciklama',t:'Açıklama',type:'textarea',wide:true,rows:2},{k:'dosya',t:'Dosya',type:'file',wide:true,replace:true,accept:'.pdf,.doc,.docx,.xls,.xlsx,image/*',help:'Prototipte en fazla 140 KB. Canlı kurulumda SharePoint kütüphanesine bağlanır.'}],
-  values:rec||{yayinTarihi:today(),versiyon:'0'},onSubmit:async v=>{if(v.link&&!/^https?:\/\//i.test(v.link)){const e=new Error('url');e.userMsg='Bağlantı http:// ya da https:// ile başlamalı.';throw e;}v.yol=String(v.yol||'').trim().replace(/^"(.*)"$/,'$1');if(v.yol&&!/^(\\\\[^\\]+\\[^\\]+|[A-Za-z]:\\)/.test(v.yol)){const e=new Error('yol');e.userMsg='Klasör yolu \\\\sunucu\\klasör ya da sürücü harfiyle (ör. S:\\) başlamalı.';throw e;}await saveRec('dokumanlar',rec?.id,v,v.ad);toast('Doküman kaydedildi.');}});}
+  values:rec||{yayinTarihi:today(),versiyon:'0'},onSubmit:async v=>{if(v.link&&!/^https?:\/\//i.test(v.link)){const e=new Error('url');e.userMsg='Bağlantı http:// ya da https:// ile başlamalı.';throw e;}checkYol(v);await saveRec('dokumanlar',rec?.id,v,v.ad);toast('Doküman kaydedildi.');}});}
 function nextRevNo(revs){const nums=(revs||[]).map(v=>parseFloat(v.no)).filter(n=>!isNaN(n));return nums.length?String(Math.max(...nums)+1):'1';}
 function isoMetaFields(){return [
  {k:'kod',t:'Doküman kodu',ph:'ör. İSG-PO-001'},
@@ -1209,7 +1226,8 @@ function isoMetaFields(){return [
  {k:'sorumlu',t:'Sorumlu',type:'select',options:userOpts},
  {k:'durum',t:'Durum',type:'select',options:ISO_DURUM,req:true},
  {k:'gozdenGecirme',t:'Sonraki gözden geçirme tarihi',type:'date'},
- {k:'aciklama',t:'Açıklama',type:'textarea',wide:true,rows:2}
+ {k:'aciklama',t:'Açıklama',type:'textarea',wide:true,rows:2},
+ {k:'yol',t:'Ortak klasör yolu (varsa)',ph:'\\\\sunucu\\ISG\\ISO 45001\\İSG.P1 İSG Yönetim Prosedürü.docx',wide:true,help:'Doküman kaydında klasöre gidiş yolu görsel olarak gösterilir, altında "Yolu kopyala" düğmesi çıkar.'}
 ];}
 function openIsoForm(rec){
   const fields=isoMetaFields();
@@ -1217,8 +1235,8 @@ function openIsoForm(rec){
   openForm({title:rec?'Doküman bilgilerini düzenle':'ISO 45001 dokümanı ekle',
     intro:rec?'':'<div class="note info">İlk revizyon bilgilerini (varsa dosyasıyla birlikte) bu formda girin. Sonraki revizyonlar için kaydı açıp "Yeni revizyon yükle" düğmesini kullanın.</div>',
     fields,values:rec||{durum:'Yürürlükte',revNo:'0',revTarih:today(),yuklemeTarihi:today()},submit:rec?'Kaydet':'Dokümanı ekle',
-    onSubmit:async v=>{
-      const meta={kod:v.kod,ad:v.ad,madde:v.madde,kategori:v.kategori,sorumlu:v.sorumlu,durum:v.durum,gozdenGecirme:v.gozdenGecirme,aciklama:v.aciklama};
+    onSubmit:async v=>{checkYol(v);
+      const meta={kod:v.kod,ad:v.ad,madde:v.madde,kategori:v.kategori,sorumlu:v.sorumlu,durum:v.durum,gozdenGecirme:v.gozdenGecirme,aciklama:v.aciklama,yol:v.yol};
       if(rec){await saveRec('iso45001',rec.id,meta,v.ad);toast('Doküman bilgileri güncellendi.');return;}
       const rev={no:v.revNo,revTarih:v.revTarih,yuklemeTarihi:v.yuklemeTarihi,dosya:v.dosya,aciklama:'İlk yükleme',yukleyen:S.user.username};
       const id=await saveRec('iso45001',null,{...meta,revizyonlar:[rev]},v.ad);toast('Doküman eklendi.');openDrawer('iso',id);
@@ -1326,7 +1344,7 @@ const A={
   dd:el=>{const i=+el.dataset.i;S.ui.dd=S.ui.dd===i?null:i;$('#hnav').innerHTML=hnavView();$('#hnav .ddm a')?.focus();},
   clearf:el=>{S.ui.f[el.dataset.p]={};render();},
   openlink:el=>{const r=S.data.dokumanlar.find(x=>x.id===el.dataset.id);if(r&&/^https?:\/\//i.test(r.link||'')){window.open(r.link,'_blank','noopener');audit('Bağlantı açıldı','dokumanlar',r.id,r.ad);}},
-  copypath:async el=>{const r=S.data.dokumanlar.find(x=>x.id===el.dataset.id);if(!r?.yol)return;try{await navigator.clipboard.writeText(r.yol);toast('Yol kopyalandı. Dosya Gezgini adres çubuğuna yapıştırın (Ctrl+V, Enter).');}catch(e){toast('Kopyalanamadı. Yolu seçip elle kopyalayın: '+r.yol,'err');}}
+  copypath:async el=>{const r=(S.data[el.dataset.coll||'dokumanlar']||[]).find(x=>x.id===el.dataset.id);if(!r?.yol)return;try{await navigator.clipboard.writeText(r.yol);toast('Yol kopyalandı. Dosya Gezgini adres çubuğuna yapıştırın (Ctrl+V, Enter).');}catch(e){toast('Kopyalanamadı. Yolu seçip elle kopyalayın: '+r.yol,'err');}}
 };
 function closePop(){$('#popHost')?.remove();S.ui.pop=null;}
 function togglePop(kind,anchor){if(S.ui.pop===kind){closePop();return;}closePop();S.ui.pop=kind;const h=document.createElement('div');h.id='popHost';
