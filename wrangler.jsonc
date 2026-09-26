@@ -19,14 +19,14 @@
   },
 
   "d1_databases": [
-    { "binding": "DB", "database_name": "isg-portal-pilot", "database_id": "D1_DATABASE_ID" }
+    { "binding": "DB", "database_name": "isg-portal-pilot", "database_id": "1eb48b61-7193-4cb5-9618-07d2a38f02b4" }
   ],
 
   "vars": {
     // Zero Trust > Settings > Custom Pages bölümündeki takım alan adı
     "TEAM_DOMAIN": "green-firefly-c395.cloudflareaccess.com",
     // Access uygulamasının "Application Audience (AUD) Tag" değeri
-    "POLICY_AUD": "ACCESS_AUD_TAG",
+    "POLICY_AUD": "603a0396b3081a0fb531adce75854cdafcddb80884395909bc52f307367a6b1e",
     // İlk yönetici zaten Yönetim Paneli üzerinden eklendi; boş bırakılır
     "ADMIN_EMAILS": ""
   },
