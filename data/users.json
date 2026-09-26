@@ -1,0 +1,362 @@
+[
+  {
+    "ad": "Akın Serbest",
+    "username": "akın.serbest",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "akins@galatawind.com.tr",
+    "unvan": "İş Geliştirme ve Proje Müdürü(Ges)"
+  },
+  {
+    "ad": "Alev Ercan",
+    "username": "alev.ercan",
+    "rol": "calisan",
+    "ekip": "İnsan Kaynakları",
+    "saha": "Merkez Ofis",
+    "eposta": "aleve@galatawind.com.tr",
+    "unvan": "İnsan Kaynakları Müdür Yar."
+  },
+  {
+    "ad": "Avni Mert Sayın",
+    "username": "avnimert.sayın",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "avnis@galatawind.com.tr",
+    "unvan": "Mühendis"
+  },
+  {
+    "ad": "Bayram Yavuz",
+    "username": "bayram.yavuz",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "bayramy@galatawind.com.tr",
+    "unvan": "Proje Planlama Müdürü"
+  },
+  {
+    "ad": "Beyza Atambay",
+    "username": "beyza.atambay",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "beyzaa@galatawind.com.tr",
+    "unvan": "Kıdemli Finans Müdürü"
+  },
+  {
+    "ad": "Burak Kuyan",
+    "username": "burak.kuyan",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "burakk@galatawind.com.tr",
+    "unvan": "Genel Müdür/CEO"
+  },
+  {
+    "ad": "Burcu Türe",
+    "username": "burcu.türe",
+    "rol": "yonetici",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "burcut@galatawind.com.tr",
+    "unvan": "Sürdürülebilirlik Kıdemli Müdürü"
+  },
+  {
+    "ad": "Duygu Köksal",
+    "username": "duygu.köksal",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "duyguk@galatawind.com.tr",
+    "unvan": "Kıdemli Muhasebe Müdürü"
+  },
+  {
+    "ad": "Elif Değirmenci Yamak",
+    "username": "elif.değirmenciyamak",
+    "rol": "calisan",
+    "ekip": "İnsan Kaynakları",
+    "saha": "Merkez Ofis",
+    "eposta": "elifd@galatawind.com.tr",
+    "unvan": "Kıdemli İnsan Kaynakları Müdürü"
+  },
+  {
+    "ad": "Eren Balkış",
+    "username": "eren.balkış",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "ebalkis@galatawind.com.tr",
+    "unvan": "Bilgi Sistemleri Stajyeri"
+  },
+  {
+    "ad": "Eren Başköy",
+    "username": "eren.başköy",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "erenb@galatawind.com.tr",
+    "unvan": "İnşaat İşleri ve Proje Müdürü"
+  },
+  {
+    "ad": "Eren Öner",
+    "username": "eren.öner",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "ereno@galatawind.com.tr",
+    "unvan": "Yatırımcı İlişkileri Direktörü"
+  },
+  {
+    "ad": "Erkan Erbiner",
+    "username": "erkan.erbiner",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "erkane@galatawind.com.tr",
+    "unvan": "İdari İşler Elemanı"
+  },
+  {
+    "ad": "Evren Atay",
+    "username": "evren.atay",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "evrena@galatawind.com.tr",
+    "unvan": "Kıdemli Müdür"
+  },
+  {
+    "ad": "Eyüp Utku Öztürk",
+    "username": "eyüputku.öztürk",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "eyupo@galatawind.com.tr",
+    "unvan": "Proje ve İnşaat İşleri Uzman Yardımcısı"
+  },
+  {
+    "ad": "Gizem Seyhan",
+    "username": "gizem.seyhan",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "gizems@galatawind.com.tr",
+    "unvan": "Sürdürülebilirlik Uzmanı"
+  },
+  {
+    "ad": "Gizem Yağmur Mert",
+    "username": "gizemyağmur.mert",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "gizemm@galatawind.com.tr",
+    "unvan": "Kıdemli Muhasebe Uzmanı"
+  },
+  {
+    "ad": "Koray Bayraktar",
+    "username": "koray.bayraktar",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "korayb@galatawind.com.tr",
+    "unvan": "Proje ve İnşaat Mühendisi"
+  },
+  {
+    "ad": "Mehmet Tan",
+    "username": "mehmet.tan",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "mehmett@galatawind.com.tr",
+    "unvan": "Kidemli Mali İşler Müdürü"
+  },
+  {
+    "ad": "Mehmet Ali Gürpınar",
+    "username": "mehmetali.gürpınar",
+    "rol": "yonetici",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "mehmetg@galatawind.com.tr",
+    "unvan": "İş Geliştirme& Proje Operasyonları Gen.Md.Yrd"
+  },
+  {
+    "ad": "Melisa Gizem Aydın",
+    "username": "melisagizem.aydın",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "melisaa@galatawind.com.tr",
+    "unvan": "Proje ve Operasyon Uzmanı"
+  },
+  {
+    "ad": "Nurdan Serçe",
+    "username": "nurdan.serçe",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "nurdans@galatawind.com.tr",
+    "unvan": "Proje Geliştirme Müdürü"
+  },
+  {
+    "ad": "Ozan Alemdar",
+    "username": "ozan.alemdar",
+    "rol": "isg",
+    "ekip": "İSG",
+    "saha": "Merkez Ofis",
+    "eposta": "ozana@galatawind.com.tr",
+    "unvan": "İş Sağlığı ve Güvenliği Müdürü"
+  },
+  {
+    "ad": "Ömer Doğan",
+    "username": "ömer.doğan",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "omerd@galatawind.com.tr",
+    "unvan": "Kamu İlişkileri Direktörü"
+  },
+  {
+    "ad": "Özlem Katırcı",
+    "username": "özlem.katırcı",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "ozlemk@galatawind.com.tr",
+    "unvan": "Muhasebe Uzmanı"
+  },
+  {
+    "ad": "Özlen Ertuğrul Cendere",
+    "username": "özlen.ertuğrulcendere",
+    "rol": "calisan",
+    "ekip": "Hukuk",
+    "saha": "Merkez Ofis",
+    "eposta": "ozlene@galatawind.com.tr",
+    "unvan": "Hukuk Direktörü/Müşavir"
+  },
+  {
+    "ad": "Ramazan Demir",
+    "username": "ramazan.demir",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "ramazand@galatawind.com.tr",
+    "unvan": "Bilgi Teknolojileri Uzmanı"
+  },
+  {
+    "ad": "Seda Dinler",
+    "username": "seda.dinler",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "sedad@galatawind.com.tr",
+    "unvan": "Yönetici Asistanı"
+  },
+  {
+    "ad": "Sedef Yücel Tatlı",
+    "username": "sedef.yüceltatlı",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "sedefy@galatawind.com.tr",
+    "unvan": "Finans Uzmanı"
+  },
+  {
+    "ad": "Serhat Akay",
+    "username": "serhat.akay",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "serhata@galatawind.com.tr",
+    "unvan": "Operasyon ve Proje Kıdemli Müdürü (Rüzgar)"
+  },
+  {
+    "ad": "Tahsin Kopuz",
+    "username": "tahsin.kopuz",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "tahsink@galatawind.com.tr",
+    "unvan": "Satın Alma Müdürü"
+  },
+  {
+    "ad": "Uğur Büyükyeter",
+    "username": "uğur.büyükyeter",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "ugurb@galatawind.com.tr",
+    "unvan": "İdari İşler Elemanı"
+  },
+  {
+    "ad": "Uğur Deniz",
+    "username": "uğur.deniz",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "ugurd@galatawind.com.tr",
+    "unvan": "Kidemli Bütçe ve Raporlama Uzmanı"
+  },
+  {
+    "ad": "Yavuz Uçan",
+    "username": "yavuz.uçan",
+    "rol": "calisan",
+    "ekip": "İş Geliştirme ve Proje Operasyonları",
+    "saha": "Merkez Ofis",
+    "eposta": "yavuzu@galatawind.com.tr",
+    "unvan": "Tesis Kurulumu & İnşaat İşleri Müdürü"
+  },
+  {
+    "ad": "Yunus Emre Soykan",
+    "username": "yunusemre.soykan",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "yunuss@galatawind.com.tr",
+    "unvan": "Mali İşler Uzman Yardımcısı"
+  },
+  {
+    "ad": "Yüksel Denizoğlu",
+    "username": "yüksel.denizoğlu",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "yukseld@galatawind.com.tr",
+    "unvan": "Strateji Direktörü"
+  },
+  {
+    "ad": "Zafer Özer",
+    "username": "zafer.özer",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "zafero@galatawind.com.tr",
+    "unvan": "Kıdemli Bütçe ve Raporlama Müdürü"
+  },
+  {
+    "ad": "Zeki Onur Aytekin",
+    "username": "zekionur.aytekin",
+    "rol": "calisan",
+    "ekip": "Finans ve Mali İşler",
+    "saha": "Merkez Ofis",
+    "eposta": "zekia@galatawind.com.tr",
+    "unvan": "Genel Müdür Yardımcısı / CFO"
+  },
+  {
+    "ad": "Zeynep Karasakaloğlu",
+    "username": "zeynep.karasakaloğlu",
+    "rol": "calisan",
+    "ekip": "Genel Müdürlük",
+    "saha": "Merkez Ofis",
+    "eposta": "zeynepk@galatawind.com.tr",
+    "unvan": "Kurumsal İletişim Kıdemli Müdür"
+  },
+  {
+    "ad": "Zeynep Turan",
+    "username": "zeynep.turan",
+    "rol": "calisan",
+    "ekip": "Hukuk",
+    "saha": "Merkez Ofis",
+    "eposta": "zeynept@galatawind.com.tr",
+    "unvan": "Avukat"
+  }
+]

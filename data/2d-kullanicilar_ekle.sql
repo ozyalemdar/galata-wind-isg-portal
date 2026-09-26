@@ -1,0 +1,10 @@
+INSERT INTO docs (coll, id, data, deleted, updated_at, updated_by) VALUES
+('kullanicilar', 'u-özlem.katırcı', '{"username": "özlem.katırcı", "ad": "Özlem Katırcı", "rol": "calisan", "ekip": "Finans ve Mali İşler", "saha": "Merkez Ofis", "eposta": "ozlemk@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-özlen.ertuğrulcendere', '{"username": "özlen.ertuğrulcendere", "ad": "Özlen Ertuğrul Cendere", "rol": "yonetici", "ekip": "Hukuk", "saha": "Merkez Ofis", "eposta": "ozlene@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-ramazan.demir', '{"username": "ramazan.demir", "ad": "Ramazan Demir", "rol": "calisan", "ekip": "İş Geliştirme ve Proje Operasyonları", "saha": "Merkez Ofis", "eposta": "ramazand@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-seda.dinler', '{"username": "seda.dinler", "ad": "Seda Dinler", "rol": "calisan", "ekip": "Genel Müdürlük", "saha": "Merkez Ofis", "eposta": "sedad@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-sedef.yüceltatlı', '{"username": "sedef.yüceltatlı", "ad": "Sedef Yücel Tatlı", "rol": "calisan", "ekip": "Finans ve Mali İşler", "saha": "Merkez Ofis", "eposta": "sedefy@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-serhat.akay', '{"username": "serhat.akay", "ad": "Serhat Akay", "rol": "yonetici", "ekip": "İş Geliştirme ve Proje Operasyonları", "saha": "Merkez Ofis", "eposta": "serhata@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-tahsin.kopuz', '{"username": "tahsin.kopuz", "ad": "Tahsin Kopuz", "rol": "yonetici", "ekip": "Finans ve Mali İşler", "saha": "Merkez Ofis", "eposta": "tahsink@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-uğur.büyükyeter', '{"username": "uğur.büyükyeter", "ad": "Uğur Büyükyeter", "rol": "calisan", "ekip": "Finans ve Mali İşler", "saha": "Merkez Ofis", "eposta": "ugurb@galatawind.com.tr"}', 0, 1790260318004, 'kurulum')
+ON CONFLICT(coll, id) DO NOTHING;

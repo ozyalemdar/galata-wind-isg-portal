@@ -1,0 +1,35 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "galata-wind-isg-pilot",
+  "main": "src/index.js",
+  "compatibility_date": "2026-09-01",
+
+  // Pilot aşaması: henüz özel alan adı yok, workers.dev üzerinden erişiliyor.
+  // Özel alan adı bağlanınca burayı false yapıp routes'u ekleyin.
+  "workers_dev": true,
+  "preview_urls": false,
+  // "routes": [
+  //   { "pattern": "isg.ORNEK-ALAN-ADI.com.tr", "custom_domain": true }
+  // ],
+
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+
+  "d1_databases": [
+    { "binding": "DB", "database_name": "isg-portal-pilot", "database_id": "D1_DATABASE_ID" }
+  ],
+
+  "vars": {
+    // Zero Trust > Settings > Custom Pages bölümündeki takım alan adı
+    "TEAM_DOMAIN": "green-firefly-c395.cloudflareaccess.com",
+    // Access uygulamasının "Application Audience (AUD) Tag" değeri
+    "POLICY_AUD": "ACCESS_AUD_TAG",
+    // İlk yönetici zaten Yönetim Paneli üzerinden eklendi; boş bırakılır
+    "ADMIN_EMAILS": ""
+  },
+
+  "observability": { "enabled": true }
+}

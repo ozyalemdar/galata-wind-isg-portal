@@ -1,0 +1,10 @@
+INSERT INTO docs (coll, id, data, deleted, updated_at, updated_by) VALUES
+('kullanicilar', 'u-gizemyağmur.mert', '{"username": "gizemyağmur.mert", "ad": "Gizem Yağmur Mert", "rol": "calisan", "ekip": "Finans ve Mali İşler", "saha": "Merkez Ofis", "eposta": "gizemm@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-koray.bayraktar', '{"username": "koray.bayraktar", "ad": "Koray Bayraktar", "rol": "calisan", "ekip": "İş Geliştirme ve Proje Operasyonları", "saha": "Merkez Ofis", "eposta": "korayb@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-mehmet.tan', '{"username": "mehmet.tan", "ad": "Mehmet Tan", "rol": "yonetici", "ekip": "Finans ve Mali İşler", "saha": "Merkez Ofis", "eposta": "mehmett@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-mehmetali.gürpınar', '{"username": "mehmetali.gürpınar", "ad": "Mehmet Ali Gürpınar", "rol": "yonetici", "ekip": "İş Geliştirme ve Proje Operasyonları", "saha": "Merkez Ofis", "eposta": "mehmetg@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-melisagizem.aydın', '{"username": "melisagizem.aydın", "ad": "Melisa Gizem Aydın", "rol": "calisan", "ekip": "İş Geliştirme ve Proje Operasyonları", "saha": "Merkez Ofis", "eposta": "melisaa@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-nurdan.serçe', '{"username": "nurdan.serçe", "ad": "Nurdan Serçe", "rol": "yonetici", "ekip": "İş Geliştirme ve Proje Operasyonları", "saha": "Merkez Ofis", "eposta": "nurdans@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-ozan.alemdar', '{"username": "ozan.alemdar", "ad": "Ozan Alemdar", "rol": "isg", "ekip": "İSG", "saha": "Merkez Ofis", "eposta": "ozana@galatawind.com.tr"}', 0, 1790260318004, 'kurulum'),
+('kullanicilar', 'u-ömer.doğan', '{"username": "ömer.doğan", "ad": "Ömer Doğan", "rol": "yonetici", "ekip": "Genel Müdürlük", "saha": "Merkez Ofis", "eposta": "omerd@galatawind.com.tr"}', 0, 1790260318004, 'kurulum')
+ON CONFLICT(coll, id) DO NOTHING;

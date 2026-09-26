@@ -1,0 +1,1 @@
+UPDATE docs SET data = json_set(data, '$.ekipler', json('["Saha Bakım", "Elektrik ve Trafo", "İSG", "İdari İşler", "Genel Müdürlük", "İş Geliştirme ve Proje Operasyonları", "Finans ve Mali İşler", "İnsan Kaynakları", "Hukuk"]')), updated_at = 1790260132453, updated_by = 'kurulum' WHERE coll = 'ayarlar' AND id = 'genel';

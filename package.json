@@ -1,0 +1,17 @@
+{
+  "name": "galata-wind-isg-pilot",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "db:schema": "wrangler d1 execute isg-portal-pilot --remote --file=schema.sql",
+    "db:seed": "wrangler d1 execute isg-portal-pilot --remote --file=seed.sql",
+    "db:schema:local": "wrangler d1 execute isg-portal-pilot --local --file=schema.sql",
+    "db:seed:local": "wrangler d1 execute isg-portal-pilot --local --file=seed.sql",
+    "db:backup": "wrangler d1 export isg-portal-pilot --remote --output=yedek.sql",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^4.0.0"
+  }
+}

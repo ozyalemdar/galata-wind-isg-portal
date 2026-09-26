@@ -1,0 +1,3 @@
+# Yalnızca yerel geliştirme (npm run dev) içindir; canlıya yüklenmez.
+# Bu adres ADMIN_EMAILS ile aynı olursa yerelde İSG yetkisiyle açılırsınız.
+DEV_EMAIL=isg.sorumlusu@ORNEK-ALAN-ADI.com.tr
