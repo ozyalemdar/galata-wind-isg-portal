@@ -170,6 +170,8 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2)
 .hero .qa button:hover{background:rgba(255,255,255,.18)}
 .hero .qa button.main{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .hero .qa button.main:hover{background:#B2EC4E}
+.hero .qa button.kaza{background:#FF5214;border-color:#FF5214;color:#fff}
+.hero .qa button.kaza:hover{background:#E6450B}
 
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:var(--r-m);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
 .kpi{padding:14px 16px;border-right:1px solid var(--line);border-bottom:1px solid var(--line);text-align:left;background:none;border-top:0;border-left:0;cursor:pointer;min-width:0}
@@ -780,7 +782,7 @@ function heroView(){
    <div><div style="opacity:.85;font-size:13px;margin-bottom:6px">${selam}, ${esc(S.user.ad.split(' ')[0])}</div>
      ${days==null?`<div class="lbl" style="font-size:24px">Kayıtlı iş kazası yok</div><div class="sub">İlk kaza kaydı girildiğinde kazasız gün sayacı burada başlar.</div>`:
      `<div class="big">${days}</div><div class="lbl">gündür iş kazası yaşanmadı</div><div class="sub">Son iş kazası ${fmtD(last)} tarihinde kaydedildi.</div>`}</div>
-   <div class="qa"><button class="main" data-a="newbil" data-t="ramak">${ic('alert')}Ramak kala bildir</button><button data-a="newbil" data-t="tehlike">${ic('siren')}Tehlike bildir</button><button data-a="newbil" data-t="kaza">${ic('cross')}Kaza bildir</button></div></section>`;
+   <div class="qa"><button class="main" data-a="newbil" data-t="ramak">${ic('alert')}Ramak kala bildir</button><button data-a="newbil" data-t="tehlike">${ic('siren')}Tehlike bildir</button><button class="kaza" data-a="newbil" data-t="kaza">${ic('cross')}Kaza bildir</button></div></section>`;
 }
 VIEWS.ana=()=>{
   if(S.user.rol==='calisan')return anaCalisan();
