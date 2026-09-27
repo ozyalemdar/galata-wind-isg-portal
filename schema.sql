@@ -11,7 +11,8 @@ CREATE TABLE IF NOT EXISTS docs (
 CREATE INDEX IF NOT EXISTS docs_updated ON docs (updated_at);
 CREATE INDEX IF NOT EXISTS docs_user_email ON docs (lower(json_extract(data, '$.eposta'))) WHERE coll = 'kullanicilar';
 
--- Kayıt geçmişi (audit log) ve e-posta kuyruğu; yalnızca ekleme yapılır
+-- Kayıt geçmişi (audit log) ve e-posta kuyruğu; audit yalnızca eklenir,
+-- e-posta satırlarının durumu gönderim görevince güncellenir
 CREATE TABLE IF NOT EXISTS logs (
   id    INTEGER PRIMARY KEY AUTOINCREMENT,
   kind  TEXT NOT NULL,                   -- 'audit' | 'eposta'

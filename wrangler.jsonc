@@ -28,8 +28,15 @@
     // Access uygulamasının "Application Audience (AUD) Tag" değeri
     "POLICY_AUD": "603a0396b3081a0fb531adce75854cdafcddb80884395909bc52f307367a6b1e",
     // İlk yönetici zaten Yönetim Paneli üzerinden eklendi; boş bırakılır
-    "ADMIN_EMAILS": ""
+    "ADMIN_EMAILS": "",
+    // E-postalardaki "Portalda aç" bağlantısı
+    "PORTAL_URL": "https://galata-wind-isg-pilot.ozanalemdar.workers.dev"
   },
+  // E-posta secret'ları (GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM)
+  // burada değil, Worker > Settings > Variables and Secrets altında "Secret" olarak tutulur.
+
+  // 5 dakikada bir e-posta kuyruğu; hafta içi 09:00 (TR) DÖF termin hatırlatmaları
+  "triggers": { "crons": ["*/5 * * * *", "0 6 * * 1-5"] },
 
   "observability": { "enabled": true }
 }

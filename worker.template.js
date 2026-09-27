@@ -357,9 +357,117 @@ async function postLog(env, u, kind, body) {
   const { mails } = await userIndex(env);
   const alici = [...new Set(String(e.alici || '').split(',').map(s => s.trim().toLowerCase()).filter(a => mails.has(a)))];
   if (!alici.length) return json({ ok: true, skipped: true });
-  await env.DB.prepare('INSERT INTO logs (kind, ts, gun, data) VALUES (?1, ?2, ?3, ?4)').bind('eposta', ts, trDate(),
-    JSON.stringify({ ts, alici: alici.join(', '), konu: str(e.konu, 300), durum: 'Kuyruğa alındı', gonderen: u.username })).run();
+  // İsteğe bağlı kayıt bağlantısı: gönderimde e-posta içeriği bu kayıttan sunucuda üretilir
+  const ref = DOC_COLLS.has(e.coll) && /^[\p{L}\p{N}_.:@-]{1,120}$/u.test(String(e.kayit || '')) ? { coll: e.coll, kayit: e.kayit } : {};
+  await queueMail(env, { ts, alici: alici.join(', '), konu: str(e.konu, 300), gonderen: u.username, ...ref });
   return json({ ok: true });
+}
+
+function queueMail(env, entry) {
+  const ts = entry.ts || new Date().toISOString();
+  return env.DB.prepare('INSERT INTO logs (kind, ts, gun, data) VALUES (?1, ?2, ?3, ?4)').bind('eposta', ts, trDate(),
+    JSON.stringify({ ...entry, ts, durum: 'Kuyruğa alındı' })).run();
+}
+
+/* ---------------- e-posta gönderimi (Microsoft Graph) ---------------- */
+// Zamanlanmış görev kuyruktaki e-postaları MAIL_FROM kutusundan gönderir.
+// Gerekli secret'lar: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM
+const REMINDER_CRON = '0 6 * * 1-5';     // hafta içi 09:00 (Türkiye saati)
+const MAIL_BATCH = 20, MAIL_MAX_TRY = 3, MAIL_MAX_AGE_MS = 2 * 864e5, REMINDER_DAYS = 3;
+const mailReady = env => !!(env.GRAPH_TENANT_ID && env.GRAPH_CLIENT_ID && env.GRAPH_CLIENT_SECRET && env.MAIL_FROM);
+const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const trD = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.split('-').reverse().join('.') : (d || '—');
+
+async function graphToken(env) {
+  const r = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(env.GRAPH_TENANT_ID)}/oauth2/v2.0/token`, {
+    method: 'POST',
+    body: new URLSearchParams({ client_id: env.GRAPH_CLIENT_ID, client_secret: env.GRAPH_CLIENT_SECRET,
+      scope: 'https://graph.microsoft.com/.default', grant_type: 'client_credentials' }),
+  });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok || !j.access_token) throw new Error('Graph erişim anahtarı alınamadı: ' + (j.error_description || j.error || r.status));
+  return j.access_token;
+}
+
+function mailHtml(env, e, doc) {
+  const url = String(env.PORTAL_URL || '').replace(/\/+$/, '');
+  const row = (k, v) => `<tr><td style="padding:4px 12px 4px 0;color:#555;vertical-align:top">${k}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`;
+  let body = '';
+  if (e.coll === 'dof' && doc) {
+    body = `<table style="border-collapse:collapse">${row('DÖF no', doc.no)}${row('Başlık', doc.baslik)}${row('Termin', trD(doc.termin))}${row('Durum', doc.durum)}${row('Planlanan faaliyet', doc.faaliyet)}</table>`;
+  } else if (Array.isArray(e.ozet)) {
+    body = `<table style="border-collapse:collapse"><tr><th align="left" style="padding:4px 12px 4px 0">DÖF</th><th align="left" style="padding:4px 12px 4px 0">Başlık</th><th align="left" style="padding:4px 0">Termin</th></tr>${
+      e.ozet.map(d => `<tr><td style="padding:4px 12px 4px 0">${escHtml(d.no)}</td><td style="padding:4px 12px 4px 0">${escHtml(d.baslik)}</td><td style="padding:4px 0${d.gecikti ? ';color:#c00' : ''}">${trD(d.termin)}${d.gecikti ? ' (termin geçti)' : ''}</td></tr>`).join('')}</table>`;
+  }
+  const page = e.coll === 'dof' || e.ozet ? '#/dof' : '';
+  const link = url ? `<p><a href="${escHtml(url + '/' + page)}">İSG Portalı'nda aç</a></p>` : '';
+  return `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1d1d1f"><p><b>${escHtml(e.konu)}</b></p>${body}${link}
+<p style="color:#888;font-size:12px">Bu e-posta Galata Wind İSG Portalı tarafından otomatik gönderilmiştir.</p></div>`;
+}
+
+async function graphSend(env, token, e, doc) {
+  const to = String(e.alici || '').split(',').map(s => s.trim()).filter(Boolean);
+  const r = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(env.MAIL_FROM)}/sendMail`, {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ saveToSentItems: false, message: { subject: e.konu,
+      body: { contentType: 'HTML', content: mailHtml(env, e, doc) },
+      toRecipients: to.map(address => ({ emailAddress: { address } })) } }),
+  });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(`Graph ${r.status}: ${j.error?.message || ''}`); }
+}
+
+async function sendMailQueue(env) {
+  const { results } = await env.DB.prepare(
+    "SELECT id, data FROM logs WHERE kind = 'eposta' AND json_extract(data, '$.durum') = 'Kuyruğa alındı' ORDER BY id LIMIT ?1"
+  ).bind(MAIL_BATCH).all();
+  if (!results.length) return;
+  let token = null;
+  for (const row of results) {
+    const e = parse(row.data) || {};
+    let upd;
+    if (Date.now() - Date.parse(e.ts) > MAIL_MAX_AGE_MS) upd = { durum: 'Atlandı (süresi geçti)' };
+    else try {
+      token = token || await graphToken(env);
+      const d = e.coll && e.kayit ? await env.DB.prepare('SELECT data FROM docs WHERE coll = ?1 AND id = ?2 AND deleted = 0').bind(e.coll, e.kayit).first() : null;
+      await graphSend(env, token, e, d && parse(d.data));
+      upd = { durum: 'Gönderildi', gonderim: new Date().toISOString() };
+    } catch (err) {
+      const deneme = (e.deneme || 0) + 1;
+      upd = { deneme, hata: str(err && err.message, 300), ...(deneme >= MAIL_MAX_TRY ? { durum: 'Hata' } : {}) };
+      console.error('E-posta gönderilemedi', row.id, upd.hata);
+    }
+    await env.DB.prepare('UPDATE logs SET data = ?2 WHERE id = ?1').bind(row.id, JSON.stringify({ ...e, ...upd })).run();
+  }
+}
+
+// Termini geçen ya da REMINDER_DAYS gün içinde dolacak açık DÖF'ler için sorumluya günlük tek özet
+async function queueDofReminders(env) {
+  const today = trDate(), limit = trDate(Date.now() + REMINDER_DAYS * 864e5);
+  const done = await env.DB.prepare(
+    "SELECT 1 FROM logs WHERE kind = 'eposta' AND gun = ?1 AND json_extract(data, '$.tur') = 'dof-hatirlatma' LIMIT 1"
+  ).bind(today).first();
+  if (done) return;
+  const { results } = await env.DB.prepare(
+    "SELECT data FROM docs WHERE coll = 'dof' AND deleted = 0 AND json_extract(data, '$.durum') <> 'Kapandı' AND json_extract(data, '$.termin') <= ?1"
+  ).bind(limit).all();
+  const users = (await env.DB.prepare(
+    "SELECT json_extract(data, '$.username') AS un, lower(json_extract(data, '$.eposta')) AS ep FROM docs WHERE coll = 'kullanicilar' AND deleted = 0"
+  ).all()).results;
+  const mailOf = new Map(users.map(r => [r.un, r.ep]));
+  const bySor = new Map();
+  for (const r of results) {
+    const d = parse(r.data);
+    if (!d || !d.termin || !mailOf.get(d.sorumlu)) continue;
+    if (!bySor.has(d.sorumlu)) bySor.set(d.sorumlu, []);
+    bySor.get(d.sorumlu).push({ no: d.no, baslik: d.baslik, termin: d.termin, gecikti: d.termin < today });
+  }
+  for (const [sor, list] of bySor) {
+    list.sort((a, b) => a.termin.localeCompare(b.termin));
+    const g = list.filter(x => x.gecikti).length, y = list.length - g;
+    const konu = 'DÖF hatırlatma: ' + [g && `${g} DÖF'ün termini geçti`, y && `${y} DÖF'ün termini ${REMINDER_DAYS} gün içinde`].filter(Boolean).join(', ');
+    await queueMail(env, { alici: mailOf.get(sor), konu, gonderen: 'sistem', tur: 'dof-hatirlatma', ozet: list });
+  }
 }
 
 async function readBody(req) {
@@ -426,5 +534,14 @@ export default {
       console.error(e && e.stack || e);
       return fail(500, 'Sunucu hatası. Birkaç dakika sonra tekrar deneyin.');
     }
+  },
+
+  // Zamanlanmış görev (wrangler.jsonc > triggers.crons): e-posta kuyruğu ve DÖF hatırlatmaları
+  async scheduled(event, env) {
+    if (!env.DB) return;
+    if (!mailReady(env)) { console.warn('E-posta gönderimi kapalı: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM tanımlı değil.'); return; }
+    // Hatırlatma görevi yalnızca kuyruğa yazar; aynı dakikada çalışan gönderim göreviyle çift gönderim olmasın
+    if (event.cron === REMINDER_CRON) return queueDofReminders(env);
+    await sendMailQueue(env);
   },
 };

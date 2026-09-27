@@ -136,10 +136,46 @@ npm run deploy
 
 ## 10. Pilotta bilinen sınırlar
 
-- **E-posta:** Bildirimler "E-posta bildirimleri" kuyruğuna yazılır, gönderilmez. Sonraki adım: kuyruğu Microsoft Graph (`Mail.Send`) ile gönderen zamanlanmış bir Worker.
+- **E-posta:** Kuyruktaki e-postalar 5 dakikada bir Microsoft Graph ile gönderilir (bkz. *E-posta gönderimi*). Secret'lar girilmezse bildirimler yalnızca kuyruğa yazılır. Yönetim Paneli'ndeki durum sütunu sayfa yenilenince güncellenir.
 - **Dosya ekleri:** Kayıt içinde saklanır; fotoğraflar otomatik küçültülür, diğer dosyalar en fazla 140 KB. Sonraki adım: R2 depolama ya da SharePoint.
 - **Eş zamanlılık:** Aynı kaydı iki kişi aynı anda düzenlerse son kaydeden geçerli olur.
 - **Kayıt geçmişi:** Ekranda son 45 gün gösterilir; tamamı veritabanında (`logs` tablosu) kalır.
+
+## E-posta gönderimi (Microsoft Graph)
+
+Portal e-postaları önce `logs` tablosuna (`kind = 'eposta'`) yazar. Worker'ın zamanlanmış görevi bu kuyruğu ortak bir posta kutusundan gönderir:
+
+| Zamanlama (UTC) | Görev |
+|---|---|
+| `*/5 * * * *` | Kuyruktaki e-postaları gönderir, durumunu `Gönderildi` / `Hata` yapar. 3 başarısız denemeden sonra `Hata`; 2 günden eski bekleyen kayıtlar `Atlandı` olur. |
+| `0 6 * * 1-5` | Hafta içi 09:00 (TR): termini geçen ya da 3 gün içinde dolacak açık DÖF'ler için her sorumluya tek özet e-posta kuyruğa yazar. |
+
+Gönderilen durumlar: yeni DÖF (sorumlu + ekip yöneticisi), DÖF sorumlusu değişince, DÖF "Doğrulama Bekliyor"a geçince (İSG), termin hatırlatmaları ve portalın kuyruğa aldığı diğer bildirimler. DÖF e-postaları DÖF no, başlık, termin, durum, planlanan faaliyet ve portal bağlantısı içerir.
+
+**1. Gönderen posta kutusu:** Exchange'de ortak (shared) bir kutu açın, ör. `isg-portal@galatawind.com.tr` (lisans gerekmez).
+
+**2. Entra uygulama kaydı:** Entra → **App registrations → New registration** ("İSG Portalı E-posta"). **API permissions → Microsoft Graph → Application permissions → `Mail.Send`** → **Grant admin consent**. **Certificates & secrets** altında istemci sırrı oluşturun (bitiş tarihini takvime not edin).
+
+**3. İzni tek kutuyla sınırlayın (zorunlu):** `Mail.Send` uygulama izni varsayılan olarak kiracıdaki *tüm* kutulardan gönderime izin verir. Exchange Online PowerShell'de:
+
+```powershell
+New-DistributionGroup -Name "ISG Portal Mail" -Type Security -Members isg-portal@galatawind.com.tr
+New-ApplicationAccessPolicy -AppId <CLIENT_ID> -PolicyScopeGroupId "ISG Portal Mail" -AccessRight RestrictAccess -Description "İSG portalı yalnızca kendi kutusundan gönderir"
+Test-ApplicationAccessPolicy -AppId <CLIENT_ID> -Identity isg-portal@galatawind.com.tr   # AccessCheckResult: Granted
+```
+
+**4. Worker secret'ları:** Cloudflare → Workers → `galata-wind-isg-pilot` → **Settings → Variables and Secrets** → tür **Secret**:
+
+| Secret | Değer |
+|---|---|
+| `GRAPH_TENANT_ID` | Directory (tenant) ID |
+| `GRAPH_CLIENT_ID` | Application (client) ID |
+| `GRAPH_CLIENT_SECRET` | İstemci sırrının *Value* alanı |
+| `MAIL_FROM` | `isg-portal@galatawind.com.tr` |
+
+Secret'lar `wrangler deploy` ile silinmez. Zamanlamalar ve `PORTAL_URL` `wrangler.jsonc` içindedir; deploy ile gelir.
+
+**5. Kontrol:** Workers → **Logs** içinde "E-posta gönderimi kapalı" uyarısı görünmemeli. Bir DÖF açıp 5 dakika içinde Yönetim Paneli → E-posta bildirimleri'nde durumun `Gönderildi` olduğunu (sayfayı yenileyerek) kontrol edin. `Hata` görünürse hata metni kayıtta (`hata` alanı) ve Worker günlüklerindedir.
 
 ## Yerel geliştirme (isteğe bağlı)
 

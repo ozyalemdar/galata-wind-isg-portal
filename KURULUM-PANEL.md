@@ -99,6 +99,8 @@ Worker sayfası → **Settings**
 
 Her eklemeden sonra **Deploy** ya da **Save and deploy** onayını verin.
 
+**E-posta gönderimi (isteğe bağlı):** `README.md` → *E-posta gönderimi* bölümündeki Entra ve secret adımlarını uygulayın. Panoda ayrıca **Settings → Trigger events → Add → Cron Triggers** ile `*/5 * * * *` ve `0 6 * * 1-5` zamanlamalarını, *Text* değişkeni olarak da `PORTAL_URL` (portal adresi) ekleyin.
+
 ## Adım 6 — Alan adını bağlayın, diğer adresleri kapatın
 
 Worker → **Settings → Domains & Routes**
