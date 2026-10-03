@@ -34,6 +34,8 @@
   },
   // E-posta secret'ları (GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM)
   // burada değil, Worker > Settings > Variables and Secrets altında "Secret" olarak tutulur.
+  // Graph hazır değilken geçici olarak RESEND_API_KEY (ve alan adı doğrulandıysa RESEND_FROM) secret'ı
+  // girilirse e-postalar Resend ile, yalnızca konu ve portal bağlantısıyla gönderilir.
 
   // 5 dakikada bir e-posta kuyruğu; hafta içi 09:00 (TR) DÖF termin hatırlatmaları
   "triggers": { "crons": ["*/5 * * * *", "0 6 * * 1-5"] },

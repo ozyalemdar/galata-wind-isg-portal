@@ -378,9 +378,12 @@ function queueMail(env, entry) {
 /* ---------------- e-posta gönderimi (Microsoft Graph) ---------------- */
 // Zamanlanmış görev kuyruktaki e-postaları MAIL_FROM kutusundan gönderir.
 // Gerekli secret'lar: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM
+// Graph hazır değilse geçici yol: RESEND_API_KEY (+ isteğe bağlı RESEND_FROM). Kişisel/sağlık verisi
+// üçüncü taraf servisten geçmesin diye Resend e-postaları yalnızca konu ve portal bağlantısı içerir.
 const REMINDER_CRON = '0 6 * * 1-5';     // hafta içi 09:00 (Türkiye saati)
 const MAIL_BATCH = 20, MAIL_MAX_TRY = 3, MAIL_MAX_AGE_MS = 2 * 864e5, REMINDER_DAYS = 3;
-const mailReady = env => !!(env.GRAPH_TENANT_ID && env.GRAPH_CLIENT_ID && env.GRAPH_CLIENT_SECRET && env.MAIL_FROM);
+const graphReady = env => !!(env.GRAPH_TENANT_ID && env.GRAPH_CLIENT_ID && env.GRAPH_CLIENT_SECRET && env.MAIL_FROM);
+const mailReady = env => graphReady(env) || !!env.RESEND_API_KEY;
 const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const trD = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.split('-').reverse().join('.') : (d || '—');
 const MAIL_COLLS = new Set(['bildirimler', 'dof']);
@@ -406,7 +409,7 @@ async function graphToken(env) {
 }
 
 // Olay ve DÖF e-postaları: giriş cümlesi + "Detaylar" tablosu + açıklama + kaydı açan bağlantı
-function mailHtml(env, e, doc, nameOf) {
+function mailHtml(env, e, doc, nameOf, brief) {
   const url = String(env.PORTAL_URL || '').replace(/\/+$/, '');
   const row = (k, v) => v === undefined || v === null || v === '' ? '' :
     `<tr><td style="padding:6px 16px 6px 0;color:#6E6F72;vertical-align:top;white-space:nowrap">${escHtml(k)}</td><td style="padding:6px 0;vertical-align:top">${escHtml(v)}</td></tr>`;
@@ -443,6 +446,7 @@ function mailHtml(env, e, doc, nameOf) {
     page = '#/dof';
     btn = 'DÖF Takibi\'ni aç';
   }
+  if (brief) { intro = "Ayrıntılar için kaydı İSG Portalı'nda görüntüleyin."; rows = ''; text = ''; }
   const link = url ? `<p style="margin:24px 0 0"><a href="${escHtml(url + '/' + page)}" style="display:inline-block;background:#002F87;color:#fff;text-decoration:none;padding:10px 18px;border-radius:4px;font-weight:600">${escHtml(btn)}</a></p>` : '';
   const details = rows ? `<p style="margin:20px 0 6px;font-size:16px;font-weight:600;color:#002F87">Detaylar</p><table role="presentation" style="border-collapse:collapse;width:100%">${rows}</table>` : '';
   return `<div style="background:#F4F5F5;padding:24px 12px;font-family:Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#242628">
@@ -454,6 +458,16 @@ ${intro ? `<p style="margin:16px 0 0">Merhaba,</p><p style="margin:8px 0 0">${es
 </td></tr>
 <tr><td style="padding:14px 24px;border-top:1px solid #E0E1E2;color:#6E6F72;font-size:12px">Bu e-posta Galata Wind İSG Portalı tarafından otomatik gönderilmiştir. Lütfen yanıtlamayın; işlemleri portal üzerinden yapın.</td></tr>
 </table></div>`;
+}
+
+async function resendSend(env, e, doc, nameOf, rowId) {
+  const to = String(e.alici || '').split(',').map(s => s.trim()).filter(Boolean);
+  const r = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: 'Bearer ' + env.RESEND_API_KEY, 'Content-Type': 'application/json', 'Idempotency-Key': 'isg-eposta-' + rowId },
+    body: JSON.stringify({ from: env.RESEND_FROM || 'İSG Portalı <onboarding@resend.dev>', to, subject: e.konu, html: mailHtml(env, e, doc, nameOf, true) }),
+  });
+  if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(`Resend ${r.status}: ${j.message || ''}`); }
 }
 
 async function graphSend(env, token, e, doc, nameOf) {
@@ -483,9 +497,9 @@ async function sendMailQueue(env) {
     let upd;
     if (Date.now() - Date.parse(e.ts) > MAIL_MAX_AGE_MS) upd = { durum: 'Atlandı (süresi geçti)' };
     else try {
-      token = token || await graphToken(env);
       const d = e.coll && e.kayit ? await env.DB.prepare('SELECT data FROM docs WHERE coll = ?1 AND id = ?2 AND deleted = 0').bind(e.coll, e.kayit).first() : null;
-      await graphSend(env, token, e, d && parse(d.data), nameOf);
+      if (graphReady(env)) { token = token || await graphToken(env); await graphSend(env, token, e, d && parse(d.data), nameOf); }
+      else await resendSend(env, e, d && parse(d.data), nameOf, row.id);
       upd = { durum: 'Gönderildi', gonderim: new Date().toISOString() };
     } catch (err) {
       const deneme = (e.deneme || 0) + 1;
@@ -594,7 +608,7 @@ export default {
   // Zamanlanmış görev (wrangler.jsonc > triggers.crons): e-posta kuyruğu ve DÖF hatırlatmaları
   async scheduled(event, env) {
     if (!env.DB) return;
-    if (!mailReady(env)) { console.warn('E-posta gönderimi kapalı: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM tanımlı değil.'); return; }
+    if (!mailReady(env)) { console.warn('E-posta gönderimi kapalı: Graph (GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM) ya da RESEND_API_KEY tanımlı değil.'); return; }
     // Hatırlatma görevi yalnızca kuyruğa yazar; aynı dakikada çalışan gönderim göreviyle çift gönderim olmasın
     if (event.cron === REMINDER_CRON) return queueDofReminders(env);
     await sendMailQueue(env);
