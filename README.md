@@ -148,7 +148,7 @@ Portal e-postaları önce `logs` tablosuna (`kind = 'eposta'`) yazar. Worker'ın
 | Zamanlama (UTC) | Görev |
 |---|---|
 | `*/5 * * * *` | Kuyruktaki e-postaları gönderir, durumunu `Gönderildi` / `Hata` yapar. 3 başarısız denemeden sonra `Hata`; 2 günden eski bekleyen kayıtlar `Atlandı` olur. |
-| `0 6 * * 1-5` | Hafta içi 09:00 (TR): termini geçen ya da 3 gün içinde dolacak açık DÖF'ler için her sorumluya tek özet e-posta kuyruğa yazar. |
+| `0 6 * * MON-FRI` | Hafta içi 09:00 (TR): termini geçen ya da 3 gün içinde dolacak açık DÖF'ler için her sorumluya tek özet e-posta kuyruğa yazar. |
 
 Gönderilen durumlar: yeni DÖF (sorumlu + ekip yöneticisi), DÖF sorumlusu değişince, DÖF "Doğrulama Bekliyor"a geçince (İSG), termin hatırlatmaları ve portalın kuyruğa aldığı diğer bildirimler. DÖF e-postaları DÖF no, başlık, termin, durum, planlanan faaliyet ve portal bağlantısı içerir.
 

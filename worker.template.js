@@ -380,7 +380,7 @@ function queueMail(env, entry) {
 // Gerekli secret'lar: GRAPH_TENANT_ID, GRAPH_CLIENT_ID, GRAPH_CLIENT_SECRET, MAIL_FROM
 // Graph hazır değilse geçici yol: RESEND_API_KEY (+ isteğe bağlı RESEND_FROM). Kişisel/sağlık verisi
 // üçüncü taraf servisten geçmesin diye Resend e-postaları yalnızca konu ve portal bağlantısı içerir.
-const REMINDER_CRON = '0 6 * * 1-5';     // hafta içi 09:00 (Türkiye saati)
+const REMINDER_CRON = '0 6 * * MON-FRI'; // hafta içi 09:00 (TR); Cloudflare'de 1 = pazar, bu yüzden gün adı
 const MAIL_BATCH = 20, MAIL_MAX_TRY = 3, MAIL_MAX_AGE_MS = 2 * 864e5, REMINDER_DAYS = 3;
 const graphReady = env => !!(env.GRAPH_TENANT_ID && env.GRAPH_CLIENT_ID && env.GRAPH_CLIENT_SECRET && env.MAIL_FROM);
 const mailReady = env => graphReady(env) || !!env.RESEND_API_KEY;

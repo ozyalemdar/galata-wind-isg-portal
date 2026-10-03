@@ -38,7 +38,7 @@
   // girilirse e-postalar Resend ile, yalnızca konu ve portal bağlantısıyla gönderilir.
 
   // 5 dakikada bir e-posta kuyruğu; hafta içi 09:00 (TR) DÖF termin hatırlatmaları
-  "triggers": { "crons": ["*/5 * * * *", "0 6 * * 1-5"] },
+  "triggers": { "crons": ["*/5 * * * *", "0 6 * * MON-FRI"] },
 
   "observability": { "enabled": true }
 }
