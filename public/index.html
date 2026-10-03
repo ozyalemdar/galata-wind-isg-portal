@@ -574,7 +574,7 @@ async function initApi(){
   if(r.status===403){$('#app').innerHTML=`<div class="login-form" style="min-height:100vh"><div style="max-width:420px"><div class="wordmark" style="margin-bottom:18px">${logoImg()}<span class="lsub">İSG Portalı</span></div><h2>Erişiminiz henüz tanımlı değil</h2><p class="sub">${esc(j.error||'')}</p><p class="hint">Oturum açılan hesap: ${esc(j.email||'')}</p><a class="btn" href="/cdn-cgi/access/logout">Farklı hesapla giriş yap</a></div></div>`;return true;}
   if(!r.ok||!j.user)return false;
   S.api=true;S.mode='bulut';S.user=j.user;readRoute();
-  await apiLoad();$('#app').innerHTML='';render();
+  await apiLoad();$('#app').innerHTML='';render();openLinked();
   audit('Oturum açma','oturum','',S.user.username);
   setInterval(()=>{if(!document.hidden)apiLoad();},60000);
   document.addEventListener('visibilitychange',()=>{if(!document.hidden)apiLoad();});
@@ -596,7 +596,7 @@ function appendLog(coll,entry){if(S.api){logChain=logChain.then(()=>api('POST','
   await put(coll,gun,{gun,kayitlar});
 }).catch(()=>{});return logChain;}
 function audit(islem,coll,kayit,detay){if(S.api&&DATA_COLLS.includes(coll))return Promise.resolve();return appendLog('audit',{ts:new Date().toISOString(),u:S.user?.username||'-',islem,coll,kayit,detay:String(detay||'').slice(0,160)});}
-function mail(alicilar,konu,ref){const list=[...new Set(alicilar.filter(Boolean))];if(!list.length)return;return appendLog('eposta',{ts:new Date().toISOString(),alici:list.join(', '),konu,durum:'Kuyruğa alındı',...(ref?{coll:ref.coll,kayit:ref.id}:{})});}
+function mail(alicilar,konu,ref){const list=[...new Set(alicilar.filter(Boolean))];if(!list.length)return;return appendLog('eposta',{ts:new Date().toISOString(),alici:list.join(', '),konu,durum:'Kuyruğa alındı',...(ref?{coll:ref.coll,kayit:ref.id,olay:ref.olay}:{})});}
 async function saveRec(coll,id,vals,label){
   const isNew=!id;id=id||newId(coll.slice(0,3));const now=new Date().toISOString();
   const cur=isNew?{}:(S.data[coll].find(x=>x.id===id)||{});
@@ -656,8 +656,11 @@ const MENU=[
  {k:'yonetim',t:'Yönetim Paneli',i:'gear',r:['isg']}
 ];
 function allowed(k){const m=MENU.find(x=>x.k===k);return m&&m.r.includes(S.user.rol);}
-function readRoute(){const h=(location.hash||'').replace(/^#\/?/,'')||'ana';S.route=allowed(h)?h:'ana';}
-window.addEventListener('hashchange',()=>{readRoute();S.ui.drawer=null;S.ui.dd=null;document.body.classList.remove('navopen');renderOverlay();render(true);window.scrollTo(0,0);});
+const LINK_KIND={dof:'dof',ramak:'bildirim',kaza:'bildirim'};
+function readRoute(){const [h,id]=((location.hash||'').replace(/^#\/?/,'')||'ana').split('/');S.route=allowed(h)?h:'ana';S.ui.link=id&&S.route===h&&LINK_KIND[h]?{kind:LINK_KIND[h],id:(()=>{try{return decodeURIComponent(id)}catch(e){return ''}})()}:null;}
+// E-postadaki kayıt bağlantısı: kaydı aç, adresi sayfa adresine indir
+function openLinked(){const l=S.ui.link;if(!l)return;S.ui.link=null;history.replaceState(null,'','#/'+S.route);if(S.data[KIND_COLL[l.kind]].some(x=>x.id===l.id))openDrawer(l.kind,l.id);else toast('Kayıt bulunamadı ya da görüntüleme yetkiniz yok.','err');}
+window.addEventListener('hashchange',()=>{readRoute();S.ui.drawer=null;S.ui.dd=null;document.body.classList.remove('navopen');renderOverlay();render(true);window.scrollTo(0,0);openLinked();});
 const go=k=>{if(location.hash==='#/'+k){readRoute();render(true);}else location.hash='#/'+k;};
 
 /* ---------- render ---------- */
@@ -1177,7 +1180,7 @@ function openBilForm(tur,rec){
       const no=nextNo(TUR[tur].p,S.data.bildirimler);
       const id=await saveRec('bildirimler',null,{...v,tur,no,durum:'Yeni',bildiren:S.user.username,ekip:S.user.ekip},no);
       const realNo=S.data.bildirimler.find(x=>x.id===id)?.no||no;
-      mail([...mailsOf('isg'),...managerMail(S.user.ekip)],`[${realNo}] Yeni ${TUR[tur].t.toLocaleLowerCase('tr-TR')} bildirimi: ${v.baslik} (${v.saha})`);
+      mail([...mailsOf('isg'),...managerMail(S.user.ekip)],`[${realNo}] Yeni ${TUR[tur].t.toLocaleLowerCase('tr-TR')} bildirimi: ${v.baslik} (${v.saha})`,{coll:'bildirimler',id,olay:'bildirim-yeni'});
       toast(`${realNo} numaralı bildiriminiz alındı. Teşekkürler.`);if(isRole('isg','yonetici'))openDrawer('bildirim',id);
     }});
 }
@@ -1189,9 +1192,9 @@ function openDofForm(rec,pre){
   openForm({title:rec?`${rec.no} düzenle`:'Yeni DÖF',fields:dofFields(),values:rec||{acilis:today(),durum:'Açık',ilerleme:0,tip:'Düzeltici',...pre},
     onSubmit:async v=>{v.ekip=ekipOf(v.sorumlu);v.ilerleme=Math.max(0,Math.min(100,v.ilerleme||0));if(v.durum==='Kapandı'){v.ilerleme=100;v.kapanisTarihi=rec?.kapanisTarihi||today();}else v.kapanisTarihi='';
       if(pre?.kaynakId)v.kaynakId=pre.kaynakId;
-      if(rec){await saveRec('dof',rec.id,v);if(rec.sorumlu!==v.sorumlu)mail([userBy(v.sorumlu)?.eposta],`[${rec.no}] DÖF size atandı: ${v.baslik}`,{coll:'dof',id:rec.id});toast('DÖF güncellendi.');return;}
+      if(rec){await saveRec('dof',rec.id,v);if(rec.sorumlu!==v.sorumlu)mail([userBy(v.sorumlu)?.eposta],`[${rec.no}] DÖF size atandı: ${v.baslik}`,{coll:'dof',id:rec.id,olay:'dof-atama'});toast('DÖF güncellendi.');return;}
       const no=nextNo('DOF',S.data.dof);const id=await saveRec('dof',null,{...v,no},no);
-      mail([userBy(v.sorumlu)?.eposta,...managerMail(v.ekip)],`[${no}] Yeni DÖF: ${v.baslik}, termin ${fmtD(v.termin)}`,{coll:'dof',id});
+      mail([userBy(v.sorumlu)?.eposta,...managerMail(v.ekip)],`[${no}] Yeni DÖF: ${v.baslik}, termin ${fmtD(v.termin)}`,{coll:'dof',id,olay:'dof-yeni'});
       if(pre?.kaynakId){const b=S.data.bildirimler.find(x=>x.id===pre.kaynakId);if(b&&b.durum!=='Kapatıldı')await patchRec('bildirimler',b.id,{durum:'DÖF Açıldı'},'DÖF açıldı',`${b.no} → ${no}`);}
       toast(`${no} açıldı ve sorumluya e-posta kuyruğa alındı.`);openDrawer('dof',id);}});
 }
@@ -1200,7 +1203,7 @@ function openDofUpd(rec){
     values:{ilerleme:rec.ilerleme||0,durum:rec.durum,ekler:rec.ekler},submit:'Güncellemeyi kaydet',
     onSubmit:async v=>{v.ilerleme=Math.max(0,Math.min(100,v.ilerleme||0));if(v.durum==='Kapandı'){v.ilerleme=100;v.kapanisTarihi=today();}
       await patchRec('dof',rec.id,v,'İlerleme güncellendi',`${rec.no}: %${v.ilerleme}, ${v.durum}`);
-      if(v.durum==='Doğrulama Bekliyor')mail(mailsOf('isg'),`[${rec.no}] Doğrulama bekliyor: ${rec.baslik}`,{coll:'dof',id:rec.id});toast('İlerleme kaydedildi.');}});
+      if(v.durum==='Doğrulama Bekliyor')mail(mailsOf('isg'),`[${rec.no}] Doğrulama bekliyor: ${rec.baslik}`,{coll:'dof',id:rec.id,olay:'dof-dogrulama'});toast('İlerleme kaydedildi.');}});
 }
 const riskFields=()=>[{k:'saha',t:'Saha',type:'select',options:sahalar,req:true},{k:'bolum',t:'Bölüm / ekipman',ph:'ör. Trafo merkezi'},{k:'faaliyet',t:'Faaliyet',req:true,wide:true},{k:'tehlike',t:'Tehlike',req:true},{k:'risk',t:'Olası sonuç'},
  {k:'olasilik',t:'Olasılık (1–5)',type:'number',min:1,max:5,req:true},{k:'siddet',t:'Şiddet (1–5)',type:'number',min:1,max:5,req:true},{k:'mevcut',t:'Mevcut önlemler',type:'textarea',wide:true,rows:2},{k:'ekOnlem',t:'Ek önlemler',type:'textarea',wide:true,rows:2},
@@ -1320,7 +1323,7 @@ const A={
   tab:el=>{S.ui.tab.yon=el.dataset.k;render();},
   xlsx:el=>exportXlsx(el.dataset.k,!!el.dataset.all),pdf:el=>exportPdf(el.dataset.k,!!el.dataset.all),perfpdf:()=>perfPdf(),
   att:async el=>{const r=S.data[el.dataset.coll].find(x=>x.id===el.dataset.id);const list=r.ekler||r.dosya||[];const a=list[+el.dataset.i];if(a)await saveFile(a.ad,dataURLtoBlob(a.veri));},
-  bilDurum:async el=>{const v=$('#bilDurum').value;const r=S.data.bildirimler.find(x=>x.id===el.dataset.id);try{await patchRec('bildirimler',r.id,{durum:v},'Durum değişikliği',`${r.no}: ${r.durum} → ${v}`);mail([userBy(r.bildiren)?.eposta],`[${r.no}] Bildiriminizin durumu: ${v}`);toast('Durum güncellendi.');}catch(e){toast(errMsg(e),'err');}},
+  bilDurum:async el=>{const v=$('#bilDurum').value;const r=S.data.bildirimler.find(x=>x.id===el.dataset.id);try{await patchRec('bildirimler',r.id,{durum:v},'Durum değişikliği',`${r.no}: ${r.durum} → ${v}`);mail([userBy(r.bildiren)?.eposta],`[${r.no}] Bildiriminizin durumu: ${v}`,{coll:'bildirimler',id:r.id,olay:'bildirim-durum'});toast('Durum güncellendi.');}catch(e){toast(errMsg(e),'err');}},
   sgk:async el=>{const r=S.data.bildirimler.find(x=>x.id===el.dataset.id);try{await patchRec('bildirimler',r.id,{sgkBildirim:today()},'SGK bildirimi yapıldı',r.no);toast('SGK bildirimi kaydedildi.');}catch(e){toast(errMsg(e),'err');}},
   dofFrom:el=>{const r=S.data.bildirimler.find(x=>x.id===el.dataset.id);openDofForm(null,{kaynak:r.no,kaynakId:r.id,saha:r.saha,baslik:r.baslik,termin:isoD(new Date(Date.now()+(r.siddet==='Kritik'||r.tur==='kaza'?7:30)*864e5))});},
   newdof:()=>openDofForm(),editdof:el=>openDofForm(S.data.dof.find(x=>x.id===el.dataset.id)),dofUpd:el=>openDofUpd(S.data.dof.find(x=>x.id===el.dataset.id)),

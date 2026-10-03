@@ -357,8 +357,14 @@ async function postLog(env, u, kind, body) {
   const { mails } = await userIndex(env);
   const alici = [...new Set(String(e.alici || '').split(',').map(s => s.trim().toLowerCase()).filter(a => mails.has(a)))];
   if (!alici.length) return json({ ok: true, skipped: true });
-  // İsteğe bağlı kayıt bağlantısı: gönderimde e-posta içeriği bu kayıttan sunucuda üretilir
-  const ref = DOC_COLLS.has(e.coll) && /^[\p{L}\p{N}_.:@-]{1,120}$/u.test(String(e.kayit || '')) ? { coll: e.coll, kayit: e.kayit } : {};
+  // İsteğe bağlı kayıt bağlantısı: gönderimde e-posta içeriği bu kayıttan sunucuda üretilir.
+  // Yalnızca gönderenin görebildiği kayıt bağlanır; aksi halde içerik e-postayla sızabilirdi.
+  let ref = {};
+  if (MAIL_COLLS.has(e.coll) && /^[\p{L}\p{N}_.:@-]{1,120}$/u.test(String(e.kayit || ''))) {
+    const d = await env.DB.prepare('SELECT data FROM docs WHERE coll = ?1 AND id = ?2 AND deleted = 0').bind(e.coll, e.kayit).first();
+    const doc = d && parse(d.data);
+    if (doc && canSee(u, e.coll, doc, (await userIndex(env)).ekipOf)) ref = { coll: e.coll, kayit: e.kayit, ...(MAIL_OLAY[e.olay] ? { olay: e.olay } : {}) };
+  }
   await queueMail(env, { ts, alici: alici.join(', '), konu: str(e.konu, 300), gonderen: u.username, ...ref });
   return json({ ok: true });
 }
@@ -377,6 +383,16 @@ const MAIL_BATCH = 20, MAIL_MAX_TRY = 3, MAIL_MAX_AGE_MS = 2 * 864e5, REMINDER_D
 const mailReady = env => !!(env.GRAPH_TENANT_ID && env.GRAPH_CLIENT_ID && env.GRAPH_CLIENT_SECRET && env.MAIL_FROM);
 const escHtml = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const trD = d => /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d.split('-').reverse().join('.') : (d || '—');
+const MAIL_COLLS = new Set(['bildirimler', 'dof']);
+const MAIL_TUR = { ramak: 'Ramak kala', tehlike: 'Tehlikeli durum', kaza: 'İş kazası' };
+// İstemcinin seçebileceği e-posta olayları ve giriş cümleleri ({tur}: olay tipi)
+const MAIL_OLAY = {
+  'bildirim-yeni': 'Sorumluluk alanınızda yeni bir {tur} bildirimi yapıldı.',
+  'bildirim-durum': 'Yaptığınız bildirimin durumu güncellendi.',
+  'dof-yeni': 'Sorumluluğunuzda yeni bir düzeltici/önleyici faaliyet (DÖF) açıldı.',
+  'dof-atama': 'Aşağıdaki DÖF size atandı.',
+  'dof-dogrulama': 'Aşağıdaki DÖF tamamlandı olarak bildirildi ve İSG etkinlik doğrulamasını bekliyor.',
+};
 
 async function graphToken(env) {
   const r = await fetch(`https://login.microsoftonline.com/${encodeURIComponent(env.GRAPH_TENANT_ID)}/oauth2/v2.0/token`, {
@@ -389,29 +405,64 @@ async function graphToken(env) {
   return j.access_token;
 }
 
-function mailHtml(env, e, doc) {
+// Olay ve DÖF e-postaları: giriş cümlesi + "Detaylar" tablosu + açıklama + kaydı açan bağlantı
+function mailHtml(env, e, doc, nameOf) {
   const url = String(env.PORTAL_URL || '').replace(/\/+$/, '');
-  const row = (k, v) => `<tr><td style="padding:4px 12px 4px 0;color:#555;vertical-align:top">${k}</td><td style="padding:4px 0">${escHtml(v)}</td></tr>`;
-  let body = '';
-  if (e.coll === 'dof' && doc) {
-    body = `<table style="border-collapse:collapse">${row('DÖF no', doc.no)}${row('Başlık', doc.baslik)}${row('Termin', trD(doc.termin))}${row('Durum', doc.durum)}${row('Planlanan faaliyet', doc.faaliyet)}</table>`;
+  const row = (k, v) => v === undefined || v === null || v === '' ? '' :
+    `<tr><td style="padding:6px 16px 6px 0;color:#6E6F72;vertical-align:top;white-space:nowrap">${escHtml(k)}</td><td style="padding:6px 0;vertical-align:top">${escHtml(v)}</td></tr>`;
+  const block = (k, v) => v ? `<p style="margin:18px 0 4px;font-weight:600">${escHtml(k)}</p><p style="margin:0;white-space:pre-wrap">${escHtml(v)}</p>` : '';
+  const ekler = d => Array.isArray(d.ekler) && d.ekler.length ? `${d.ekler.length} dosya (portalda görüntülenebilir)` : '';
+  let intro = '', rows = '', text = '', page = '', btn = "İSG Portalı'nda aç";
+  if (e.coll === 'bildirimler' && doc) {
+    const tur = MAIL_TUR[doc.tur] || 'Olay';
+    intro = (MAIL_OLAY[e.olay] || 'Bir olay bildirimi hakkında bilgilendirme:').replace('{tur}', tur.toLocaleLowerCase('tr-TR'));
+    rows = row('Bildirim no', doc.no) + row('Olay tipi', tur) + row('Başlık', doc.baslik)
+      + (doc.tur === 'kaza'
+        ? row('Kaza türü', doc.kazaTuru) + row('Etkilenen kişi', doc.etkilenen) + row('Yaralı / kayıp iş günü', `${doc.yaraliSayisi ?? 0} / ${doc.kayipGun ?? 0}`) + row('Yaralanan bölge', doc.yaraBolge) + row('Tanıklar', doc.tanik)
+        : row('Olası sonucun önemi', doc.siddet))
+      + row('Tarih / saat', trD(doc.tarih) + (doc.saat ? ' – ' + doc.saat : '')) + row('Saha', doc.saha) + row('Konum', doc.konum)
+      + row('Bildiren', doc.anonim ? 'Anonim' : nameOf(doc.bildiren)) + row('Ekip', doc.ekip) + row('Durum', doc.durum) + row('Ekler', ekler(doc));
+    text = block('Rapor detayı', doc.aciklama) + block('Anlık alınan önlem', doc.anlikOnlem) + block('Önleme önerisi', doc.oneri);
+    page = '#/' + (doc.tur === 'kaza' ? 'kaza' : 'ramak') + '/' + encodeURIComponent(e.kayit);
+    btn = 'İlgili bildirimi görüntüle';
+  } else if (e.coll === 'dof' && doc) {
+    const gecikti = doc.termin && doc.durum !== 'Kapandı' && doc.termin < trDate();
+    intro = MAIL_OLAY[e.olay] || 'Bir DÖF hakkında bilgilendirme:';
+    rows = row('DÖF no', doc.no) + row('Başlık', doc.baslik) + row('Tip', doc.tip) + row('Kaynak', doc.kaynak)
+      + row('Sorumlu', nameOf(doc.sorumlu)) + row('Saha', doc.saha) + row('Açılış', trD(doc.acilis))
+      + row('Termin', trD(doc.termin) + (gecikti ? ' (termin geçti)' : '')) + row('Durum', doc.durum)
+      + row('İlerleme', doc.ilerleme === undefined ? '' : '%' + doc.ilerleme) + row('Ekler', ekler(doc));
+    text = block('Kök neden', doc.kokNeden) + block('Planlanan faaliyet', doc.faaliyet)
+      + (e.olay === 'dof-dogrulama' ? block('Yapılanlar (son güncelleme)', doc.guncellemeNotu) : '');
+    page = '#/dof/' + encodeURIComponent(e.kayit);
+    btn = "İlgili DÖF'ü görüntüle";
   } else if (Array.isArray(e.ozet)) {
-    body = `<table style="border-collapse:collapse"><tr><th align="left" style="padding:4px 12px 4px 0">DÖF</th><th align="left" style="padding:4px 12px 4px 0">Başlık</th><th align="left" style="padding:4px 0">Termin</th></tr>${
-      e.ozet.map(d => `<tr><td style="padding:4px 12px 4px 0">${escHtml(d.no)}</td><td style="padding:4px 12px 4px 0">${escHtml(d.baslik)}</td><td style="padding:4px 0${d.gecikti ? ';color:#c00' : ''}">${trD(d.termin)}${d.gecikti ? ' (termin geçti)' : ''}</td></tr>`).join('')}</table>`;
+    intro = 'Sorumluluğunuzdaki aşağıdaki DÖF\'lerin termini geçti ya da yaklaşıyor:';
+    rows = `<tr><th align="left" style="padding:6px 16px 6px 0">DÖF</th><th align="left" style="padding:6px 16px 6px 0">Başlık</th><th align="left" style="padding:6px 0">Termin</th></tr>${
+      e.ozet.map(d => `<tr><td style="padding:6px 16px 6px 0;white-space:nowrap">${escHtml(d.no)}</td><td style="padding:6px 16px 6px 0">${escHtml(d.baslik)}</td><td style="padding:6px 0;white-space:nowrap${d.gecikti ? ';color:#C23B00;font-weight:600' : ''}">${trD(d.termin)}${d.gecikti ? ' (termin geçti)' : ''}</td></tr>`).join('')}`;
+    page = '#/dof';
+    btn = 'DÖF Takibi\'ni aç';
   }
-  const page = e.coll === 'dof' || e.ozet ? '#/dof' : '';
-  const link = url ? `<p><a href="${escHtml(url + '/' + page)}">İSG Portalı'nda aç</a></p>` : '';
-  return `<div style="font-family:Segoe UI,Arial,sans-serif;font-size:14px;color:#1d1d1f"><p><b>${escHtml(e.konu)}</b></p>${body}${link}
-<p style="color:#888;font-size:12px">Bu e-posta Galata Wind İSG Portalı tarafından otomatik gönderilmiştir.</p></div>`;
+  const link = url ? `<p style="margin:24px 0 0"><a href="${escHtml(url + '/' + page)}" style="display:inline-block;background:#002F87;color:#fff;text-decoration:none;padding:10px 18px;border-radius:4px;font-weight:600">${escHtml(btn)}</a></p>` : '';
+  const details = rows ? `<p style="margin:20px 0 6px;font-size:16px;font-weight:600;color:#002F87">Detaylar</p><table role="presentation" style="border-collapse:collapse;width:100%">${rows}</table>` : '';
+  return `<div style="background:#F4F5F5;padding:24px 12px;font-family:Segoe UI,Arial,sans-serif;font-size:14px;line-height:1.5;color:#242628">
+<table role="presentation" style="border-collapse:collapse;width:100%;max-width:640px;margin:0 auto;background:#fff;border:1px solid #E0E1E2">
+<tr><td style="background:#002F87;color:#fff;padding:14px 24px;font-size:15px;font-weight:600">Galata Wind · İSG Portalı</td></tr>
+<tr><td style="padding:24px">
+<p style="margin:0 0 4px;font-size:17px;font-weight:600">${escHtml(e.konu)}</p>
+${intro ? `<p style="margin:16px 0 0">Merhaba,</p><p style="margin:8px 0 0">${escHtml(intro)}</p>` : ''}${details}${text}${link}
+</td></tr>
+<tr><td style="padding:14px 24px;border-top:1px solid #E0E1E2;color:#6E6F72;font-size:12px">Bu e-posta Galata Wind İSG Portalı tarafından otomatik gönderilmiştir. Lütfen yanıtlamayın; işlemleri portal üzerinden yapın.</td></tr>
+</table></div>`;
 }
 
-async function graphSend(env, token, e, doc) {
+async function graphSend(env, token, e, doc, nameOf) {
   const to = String(e.alici || '').split(',').map(s => s.trim()).filter(Boolean);
   const r = await fetch(`https://graph.microsoft.com/v1.0/users/${encodeURIComponent(env.MAIL_FROM)}/sendMail`, {
     method: 'POST',
     headers: { Authorization: 'Bearer ' + token, 'Content-Type': 'application/json' },
     body: JSON.stringify({ saveToSentItems: false, message: { subject: e.konu,
-      body: { contentType: 'HTML', content: mailHtml(env, e, doc) },
+      body: { contentType: 'HTML', content: mailHtml(env, e, doc, nameOf) },
       toRecipients: to.map(address => ({ emailAddress: { address } })) } }),
   });
   if (!r.ok) { const j = await r.json().catch(() => ({})); throw new Error(`Graph ${r.status}: ${j.error?.message || ''}`); }
@@ -423,6 +474,10 @@ async function sendMailQueue(env) {
   ).bind(MAIL_BATCH).all();
   if (!results.length) return;
   let token = null;
+  const names = new Map((await env.DB.prepare(
+    "SELECT json_extract(data, '$.username') AS un, json_extract(data, '$.ad') AS ad FROM docs WHERE coll = 'kullanicilar' AND deleted = 0"
+  ).all()).results.map(r => [r.un, r.ad]));
+  const nameOf = un => names.get(un) || un || '';
   for (const row of results) {
     const e = parse(row.data) || {};
     let upd;
@@ -430,7 +485,7 @@ async function sendMailQueue(env) {
     else try {
       token = token || await graphToken(env);
       const d = e.coll && e.kayit ? await env.DB.prepare('SELECT data FROM docs WHERE coll = ?1 AND id = ?2 AND deleted = 0').bind(e.coll, e.kayit).first() : null;
-      await graphSend(env, token, e, d && parse(d.data));
+      await graphSend(env, token, e, d && parse(d.data), nameOf);
       upd = { durum: 'Gönderildi', gonderim: new Date().toISOString() };
     } catch (err) {
       const deneme = (e.deneme || 0) + 1;
