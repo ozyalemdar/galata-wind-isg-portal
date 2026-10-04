@@ -643,6 +643,7 @@ const MENU=[
  {k:'kaza',t:'İş Kazaları',i:'cross',r:ALL},
  {k:'dof',t:'DÖF Takibi',i:'check',r:['yonetici','isg']},
  {k:'risk',t:'Risk Değerlendirmeleri',i:'grid',r:['yonetici','isg']},
+ {k:'formlar',t:'Kontrol Formları',i:'doc',r:ALL},
  {g:'Çalışan'},
  {k:'egitim',t:'Eğitimler',i:'cap',r:ALL},
  {k:'kkd',t:'KKD Takibi',i:'helmet',r:ALL},
@@ -657,7 +658,8 @@ const MENU=[
 ];
 function allowed(k){const m=MENU.find(x=>x.k===k);return m&&m.r.includes(S.user.rol);}
 const LINK_KIND={dof:'dof',ramak:'bildirim',kaza:'bildirim'};
-function readRoute(){const [h,id]=((location.hash||'').replace(/^#\/?/,'')||'ana').split('/');S.route=allowed(h)?h:'ana';S.ui.link=id&&S.route===h&&LINK_KIND[h]?{kind:LINK_KIND[h],id:(()=>{try{return decodeURIComponent(id)}catch(e){return ''}})()}:null;}
+function readRoute(){const [h,id,sub]=((location.hash||'').replace(/^#\/?/,'')||'ana').split('/');S.route=allowed(h)?h:'ana';
+  const dec=x=>{try{return decodeURIComponent(x||'')}catch(e){return ''}};S.ui.formId=S.route==='formlar'?dec(id):'';S.ui.formKod=S.route==='formlar'?dec(sub):'';S.ui.link=id&&S.route===h&&LINK_KIND[h]?{kind:LINK_KIND[h],id:(()=>{try{return decodeURIComponent(id)}catch(e){return ''}})()}:null;}
 // E-postadaki kayıt bağlantısı: kaydı aç, adresi sayfa adresine indir
 function openLinked(){const l=S.ui.link;if(!l)return;S.ui.link=null;history.replaceState(null,'','#/'+S.route);if(S.data[KIND_COLL[l.kind]].some(x=>x.id===l.id))openDrawer(l.kind,l.id);else toast('Kayıt bulunamadı ya da görüntüleme yetkiniz yok.','err');}
 window.addEventListener('hashchange',()=>{readRoute();S.ui.drawer=null;S.ui.dd=null;document.body.classList.remove('navopen');renderOverlay();render(true);window.scrollTo(0,0);openLinked();});
@@ -671,7 +673,10 @@ function render(){
   if(!root.querySelector('.shell'))root.innerHTML=shellView();
   $('#nav').innerHTML=navView();$('#hnav').innerHTML=hnavView();$('#bellWrap').innerHTML=bellView();
   const a=document.activeElement;const aid=a&&a.id&&$('#main').contains(a)?a.id:null;let sel=null;try{sel=a.selectionStart}catch(e){}
-  $('#main').innerHTML=(VIEWS[S.route]||VIEWS.ana)();
+  // Açık form her veri yenilemesinde sıfırlanmasın (yarım doldurulmuş form kaybolur): aynı form açıkken #main'e dokunma
+  const fk=S.route==='formlar'?`formlar/${S.ui.formId}/${S.ui.formKod}`:'';
+  if(fk&&S.ui.formsKey===fk&&$('#formHost')){ /* korunur */ }
+  else{S.ui.formsKey=null;$('#main').innerHTML=(VIEWS[S.route]||VIEWS.ana)();if(S.route==='formlar')mountForms();}
   if(aid){const el=document.getElementById(aid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
   if(S.ui.drawer)renderOverlay();
 }
@@ -998,6 +1003,40 @@ VIEWS.yuklenici=()=>{
   ${fbar(page,{saha:true,durum:['Uygun','Eksik belge','Askıda'],right:`<span class="count">${rows.length} firma</span>`})}
   ${table([{t:'Firma',r:r=>`<div class="ttl">${esc(r.firma)}</div><div class="sm">${esc(r.faaliyet||'')}</div>`},{t:'Saha',r:r=>esc(r.saha)},{t:'Çalışan',r:r=>esc(r.calisanSayisi??'—')},{t:'Belgeler',r:r=>`${(r.belgeler||[]).length} / ${YUK_BELGE.length}`},{t:'Açık uygunsuzluk',r:r=>openU(r)?`<b style="color:var(--danger)">${openU(r)}</b>`:'0'},{t:'Son denetim',r:r=>fmtD(r.sonDenetim)},{t:'Durum',r:r=>badge(r.durum)}],rows,{open:'yuklenici',empty:'Kayıtlı yüklenici yok.'})}`;
 };
+
+/* ---------- İSG kontrol formları (public/isg: form motoru + form tanımları) ---------- */
+VIEWS.formlar=()=>`${ph('Kontrol formları','İSG.P1 kontrol formlarını doldurun. Tamamlanan kayıtlar portalda tutulur; PDF çıktısını alıp ıslak imzalayın.',S.ui.formId?`<a class="btn" href="#/formlar">${ic('grid')}Tüm formlar</a>`:'')}<div id="formHost" class="isg-app" aria-live="polite"><p class="hint">Formlar yükleniyor…</p></div>`;
+const FORM_LIBS=['https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/pdfmake.min.js','https://cdn.jsdelivr.net/npm/pdfmake@0.2.7/build/vfs_fonts.js'];
+let formLibP=null;
+function loadFormLib(){if(!formLibP)formLibP=(async()=>{
+  if(!document.querySelector('link[data-isg]')){const l=document.createElement('link');l.rel='stylesheet';l.href='/isg/isg-forms.css';l.dataset.isg=1;document.head.appendChild(l);}
+  // PDF kütüphanesi yüklenemezse form yine de açılır; PDF düğmesinde uyarı verilir
+  const pdf=(async()=>{try{await loadScript(FORM_LIBS[0]);await loadScript(FORM_LIBS[1]);}catch(e){}})();
+  await loadScript('/isg/isg-forms.js');await loadScript('/isg/forms/catalog.js');await pdf;
+  const c=window.ISG.config;c.orgName='Galata Wind A.Ş.';c.archiveLimit=20;
+  c.getKod=()=>S.ui.formKod||null;
+  c.qrUrl=(sch,kod)=>`${location.origin}/#/formlar/${encodeURIComponent(sch.id)}/${encodeURIComponent(kod)}`;
+})().catch(e=>{formLibP=null;throw e;});return formLibP;}
+function setFormBackend(){const ISG=window.ISG;
+  if(!S.api){ISG.backend=null;return;}   // yerel prototip modu: kayıtlar bu cihazda kalır
+  ISG.config.storagePrefix=`isg:${S.user.username}:`;   // taslaklar kullanıcıya özel (ortak cihaz)
+  ISG.backend={canRemove:isRole('isg'),
+    list:async f=>(await api('GET','/api/form?f='+encodeURIComponent(f)+'&limit=20')).kayitlar||[],
+    save:async(f,d)=>(await api('POST','/api/form',{formId:f,code:ISG.forms[f].code,data:d})).data,
+    remove:(f,no)=>api('DELETE','/api/form/'+encodeURIComponent(no))};}
+async function mountForms(){
+  const host=$('#formHost');if(!host)return;const id=S.ui.formId,kod=S.ui.formKod;
+  S.ui.formsKey=`formlar/${id}/${kod}`;   // yükleme sürerken yapılan yeniden çizimler formu sıfırlamasın
+  try{await loadFormLib();
+    const known=window.ISG.catalog.find(c=>c.id===id&&c.file);
+    if(id&&known)await loadScript('/isg/forms/'+known.file);
+    if(!$('#formHost')||S.route!=='formlar'||S.ui.formId!==id||S.ui.formKod!==kod)return;   // bu arada sayfa değişti
+    setFormBackend();
+    if(id&&known){host.innerHTML='<div class="isg-wrap"><div id="isgRoot"></div></div>';window.ISG.mount($('#isgRoot'),id);}
+    else if(id){host.innerHTML='<div class="empty">Bu form bulunamadı ya da henüz dijitale alınmadı.</div>';}
+    else{host.innerHTML=`<section class="panel"><ul class="list">${window.ISG.catalog.filter(c=>c.file).map(c=>`<li><div class="m"><b>${esc(c.title)}</b><small>${esc(c.code)}</small><small>${esc(c.advice)}</small></div><div class="btns"><a class="btn pri sm" href="#/formlar/${encodeURIComponent(c.id)}">Aç</a></div></li>`).join('')}</ul></section>`;}
+  }catch(e){S.ui.formsKey=null;if($('#formHost'))host.innerHTML='<div class="note">Form modülü yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</div>';}
+}
 
 VIEWS.rapor=()=>{
   const ay=S.ui.rpAy||ym(today());const bil=scope('bildirimler').filter(b=>ym(b.tarih)===ay);const dof=scope('dof');

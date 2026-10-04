@@ -14,6 +14,8 @@ const INDEX_HTML = /*__INDEX_HTML__*/null;
 const DOC_COLLS = new Set(['bildirimler', 'dof', 'risk', 'egitimler', 'kkd', 'dokumanlar', 'iso45001',
   'duyurular', 'acil', 'yukleniciler', 'kullanicilar', 'ayarlar']);
 const LOG_KINDS = new Set(['audit', 'eposta']);
+// Tamamlanmış İSG form kayıtları: DOC_COLLS dışında; /api/data ile herkese dağıtılmaz, /api/form üzerinden okunur
+const FORM_COLL = 'formkayitlari';
 const ROLES = ['calisan', 'yonetici', 'isg'];
 const TUR_PREFIX = { ramak: 'RK', tehlike: 'TH', kaza: 'KZ' };
 const NUMBERED = { dof: 'DOF', risk: 'RD' };           // bildirimler: türe göre
@@ -155,6 +157,7 @@ function canSee(u, coll, d, ekipOf) {
     case 'dof': return d.sorumlu === me || (mgr && !!u.ekip && d.ekip === u.ekip);
     case 'egitimler': return (d.katilimcilar || []).some(k => k && (k.u === me || (mgr && !!u.ekip && ekipOf(k.u) === u.ekip)));
     case 'kkd': return d.u === me || (mgr && !!u.ekip && ekipOf(d.u) === u.ekip);
+    case FORM_COLL: return false;   // formVisible() ile, yalnızca /api/form üzerinden
     default: return true;
   }
 }
@@ -164,7 +167,7 @@ const redact = (u, coll, d) => hidesReporter(u, coll, d) ? { ...d, bildiren: '',
 // Rol isg değilse: görebildiği kayıtlar (anahtar "coll/id") -> bildiren gizli mi?
 async function visibleMap(env, u, ekipOf) {
   const { results } = await env.DB.prepare(
-    "SELECT coll, id, json_extract(data,'$.bildiren') AS bildiren, json_extract(data,'$.ekip') AS ekip, json_extract(data,'$.sorumlu') AS sorumlu, json_extract(data,'$.u') AS uu, json_extract(data,'$.katilimcilar') AS kat, json_extract(data,'$.anonim') AS anonim FROM docs WHERE deleted = 0"
+    `SELECT coll, id, json_extract(data,'$.bildiren') AS bildiren, json_extract(data,'$.ekip') AS ekip, json_extract(data,'$.sorumlu') AS sorumlu, json_extract(data,'$.u') AS uu, json_extract(data,'$.katilimcilar') AS kat, json_extract(data,'$.anonim') AS anonim FROM docs WHERE deleted = 0 AND coll <> '${FORM_COLL}'`
   ).all();
   const m = new Map();
   for (const r of results) {
@@ -239,8 +242,8 @@ async function getData(env, u, url) {
   const { ekipOf } = await userIndex(env);
 
   const rows = since
-    ? (await env.DB.prepare('SELECT coll, id, data, deleted FROM docs WHERE updated_at > ?1').bind(since - 5000).all()).results
-    : (await env.DB.prepare('SELECT coll, id, data, deleted FROM docs WHERE deleted = 0').all()).results;
+    ? (await env.DB.prepare(`SELECT coll, id, data, deleted FROM docs WHERE updated_at > ?1 AND coll <> '${FORM_COLL}'`).bind(since - 5000).all()).results
+    : (await env.DB.prepare(`SELECT coll, id, data, deleted FROM docs WHERE deleted = 0 AND coll <> '${FORM_COLL}'`).all()).results;
   const docs = [];
   for (const r of rows) {
     if (!DOC_COLLS.has(r.coll)) continue;
@@ -341,6 +344,63 @@ async function deleteDoc(env, u, coll, id, body) {
   if (!r.meta.changes) throw new HttpError(404, 'Kayıt bulunamadı.');
   const meta = (body && body.meta) || {};
   await writeAudit(env, { u: u.username, islem: 'Silme', coll, kayit: id, detay: str(meta.detay, 160) });
+  return json({ ok: true });
+}
+
+/* ---------------- İSG form kayıtları ---------------- */
+// Görünürlük: İSG hepsini; diğerleri kendi kayıtlarını ve (ekibi tanımlıysa) ekip arkadaşlarının kayıtlarını görür.
+// Ekip paylaşımı, "listeyi son kayıttan al" akışı içindir (ekipman listesi başka bir teknik personelden devralınabilir).
+const FORM_ID_RE = /^[a-z0-9-]{3,60}$/;
+async function listForms(env, u, url) {
+  const f = url.searchParams.get('f') || '';
+  if (!FORM_ID_RE.test(f)) throw new HttpError(400, 'Geçersiz form.');
+  const limit = Math.max(1, Math.min(60, Number(url.searchParams.get('limit')) || 20));
+  const scoped = u.rol !== 'isg';
+  const { results } = await env.DB.prepare(
+    `SELECT data FROM docs WHERE coll = ?1 AND deleted = 0 AND json_extract(data, '$.formId') = ?2
+     ${scoped ? "AND (json_extract(data, '$.olusturan') = ?4 OR (?5 <> '' AND json_extract(data, '$.ekip') = ?5))" : ''}
+     ORDER BY updated_at DESC LIMIT ?3`
+  ).bind(...(scoped ? [FORM_COLL, f, limit, u.username, u.ekip || ''] : [FORM_COLL, f, limit])).all();
+  return json({ ok: true, kayitlar: results.map(r => parse(r.data)).filter(Boolean).map(r => r.data) });
+}
+
+async function createForm(env, u, body) {
+  const formId = body && body.formId, data = body && body.data;
+  if (!FORM_ID_RE.test(String(formId || ''))) throw new HttpError(400, 'Geçersiz form.');
+  if (!data || typeof data !== 'object' || Array.isArray(data) || !data.meta || typeof data.meta !== 'object') throw new HttpError(400, 'Geçersiz veri.');
+  const code = String(body.code || '').replace(/[^A-Z0-9]/gi, '').toUpperCase().slice(0, 20) || 'FORM';
+  const now = Date.now(), nowIso = new Date(now).toISOString();
+  const pre = `${code}-${trDate(now).replaceAll('-', '')}-`;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const m = await env.DB.prepare("SELECT MAX(CAST(substr(id, ?3) AS INTEGER)) AS n FROM docs WHERE coll = ?1 AND id LIKE ?2 || '%'")
+      .bind(FORM_COLL, pre, pre.length + 1).first();
+    const no = pre + String((m && m.n || 0) + 1 + attempt).padStart(4, '0');
+    // Sunucu alanları istemciden gelene üstün gelir
+    const rec = {
+      formId, no, olusturan: u.username, ekip: u.ekip || '', olusturma: nowIso,
+      data: { ...data, meta: { ...data.meta, formId, recordNo: no, completedAt: nowIso, by: u.ad || u.username } },
+    };
+    const payload = JSON.stringify(rec);
+    if (enc.encode(payload).length > MAX_DOC_BYTES) throw new HttpError(413, 'Kayıt çok büyük.');
+    try {
+      await env.DB.prepare('INSERT INTO docs (coll, id, data, deleted, updated_at, updated_by) VALUES (?1, ?2, ?3, 0, ?4, ?5)')
+        .bind(FORM_COLL, no, payload, now, u.eposta).run();
+    } catch (e) {
+      if (/UNIQUE|constraint/i.test(String(e && e.message))) continue;   // aynı anda başka kayıt aynı numarayı aldı
+      throw e;
+    }
+    await writeAudit(env, { u: u.username, islem: 'Form kaydı', coll: FORM_COLL, kayit: no, detay: str(code + ' ' + formId, 160) });
+    return json({ ok: true, data: rec.data });
+  }
+  throw new HttpError(409, 'Kayıt numarası atanamadı, tekrar deneyin.');
+}
+
+async function deleteForm(env, u, no) {
+  if (u.rol !== 'isg') deny('Kayıt silme yetkisi yalnızca İSG departmanındadır.');
+  const r = await env.DB.prepare('UPDATE docs SET deleted = 1, updated_at = ?1, updated_by = ?2 WHERE coll = ?3 AND id = ?4 AND deleted = 0')
+    .bind(Date.now(), u.eposta, FORM_COLL, no).run();
+  if (!r.meta.changes) throw new HttpError(404, 'Kayıt bulunamadı.');
+  await writeAudit(env, { u: u.username, islem: 'Silme', coll: FORM_COLL, kayit: no, detay: str(no, 160) });
   return json({ ok: true });
 }
 
@@ -568,6 +628,11 @@ async function handleApi(req, env, url) {
     if (!/^[\p{L}\p{N}_.:@-]{1,120}$/u.test(id)) return fail(400, 'Geçersiz kayıt kimliği.');
     if (req.method === 'PUT') return putDoc(env, u, coll, id, await readBody(req));
     if (req.method === 'DELETE') return deleteDoc(env, u, coll, id, await readBody(req));
+  }
+  if (p[1] === 'form') {
+    if (p.length === 2 && req.method === 'GET') return listForms(env, u, url);
+    if (p.length === 2 && req.method === 'POST') return createForm(env, u, await readBody(req));
+    if (p.length === 3 && req.method === 'DELETE' && /^[A-Z0-9-]{8,60}$/.test(p[2])) return deleteForm(env, u, p[2]);
   }
   if (p[1] === 'log' && p.length === 3 && req.method === 'POST') {
     if (!LOG_KINDS.has(p[2])) return fail(404, 'Bilinmeyen kayıt türü.');
