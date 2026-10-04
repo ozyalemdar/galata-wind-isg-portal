@@ -712,7 +712,7 @@ function shellView(){
   <nav class="hnav" id="hnav" aria-label="Ana menü"></nav>
   <div class="layout"><nav class="nav" id="nav" aria-label="Menü"></nav><div class="scrim" data-a="nav"></div><main id="main" tabindex="-1"></main></div></div>`;
 }
-const HNAV=[{k:'ana'},{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','kkd','acil']},{k:'dokuman'},{k:'iso'},{k:'duyuru'},{k:'rapor'},{k:'yonetim'}];
+const HNAV=[{k:'ana'},{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','kkd','acil']},{k:'formlar'},{k:'dokuman'},{k:'iso'},{k:'duyuru'},{k:'rapor'},{k:'yonetim'}];
 function hnavView(){
   const M=k=>MENU.find(m=>m.k===k);
   return HNAV.map((x,idx)=>{
