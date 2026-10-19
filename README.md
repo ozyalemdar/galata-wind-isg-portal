@@ -177,6 +177,15 @@ Secret'lar `wrangler deploy` ile silinmez. Zamanlamalar ve `PORTAL_URL` `wrangle
 
 **5. Kontrol:** Workers → **Logs** içinde "E-posta gönderimi kapalı" uyarısı görünmemeli. Bir DÖF açıp 5 dakika içinde Yönetim Paneli → E-posta bildirimleri'nde durumun `Gönderildi` olduğunu (sayfayı yenileyerek) kontrol edin. `Hata` görünürse hata metni kayıtta (`hata` alanı) ve Worker günlüklerindedir.
 
+## Video eğitimleri
+
+**Çalışan → Video Eğitimler** sekmesi, İSG'nin tanımladığı eğitimleri sıralı videolar halinde izletir.
+
+- **Eğitim ekleme (yalnızca İSG):** "Eğitim ekle" ile ad, açıklama ve videoları girin. Her video için doğrudan video dosyasına giden, herkesin açabildiği bir **https** bağlantısı gerekir (ör. `https://…/egitim.mp4`). YouTube sayfa bağlantıları çalışmaz. Süre bağlantıdan otomatik okunur; okunamazsa `dk:sn` olarak elle girilir. Sonradan "Düzenle" ile yeni video eklenebilir, sıra ↑/↓ ile değiştirilebilir; izleme ilerlemesi korunur.
+- **İzleme kuralları:** İleri sarma ve hızlandırma kapalıdır, geri sarma serbesttir. Video sonuna kadar izlenince **İleri** düğmesi açılır ve sonraki videoya geçilir; önceki video bitmeden sonraki açılmaz. Kullanıcı kaldığı videodan ve saniyeden devam eder. Sunucu da denetler: izlenen konum, videonun açılmasından bu yana geçen gerçek süreyi aşamaz ve videolar sırayla tamamlanır.
+- **İzleme raporu:** İSG tüm çalışanları, yönetici kendi ekibini görür (başlamayanlar dahil); Excel/PDF'e aktarılabilir. İSG, bir çalışanın ilerlemesini "Sıfırla" ile baştan başlatabilir. Tamamlanan videolar kayıt geçmişine yazılır.
+- **Barındırma notu:** Videoyu barındıran sunucu HTTP Range isteklerini desteklemelidir (SharePoint, OneDrive, R2 ve CDN'ler destekler); desteklemezse kaldığı yerden devam özelliği çalışmaz ve video baştan başlar. Tarayıcı uyumu için video MP4 (H.264/AAC) olmalıdır.
+
 ## Yerel geliştirme (isteğe bağlı)
 
 ```bash
