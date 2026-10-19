@@ -443,6 +443,20 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 .pop{top:72px}
 @media (max-width:1180px){.hnav{display:none}#navBtn{display:inline-flex}.topbar{position:sticky;top:0;z-index:30;height:64px}}
 @media (max-width:640px){.logo .lt{font-size:17px}.logo img{height:40px}.topbar .gsearch{display:none}.kbgrid{grid-template-columns:minmax(0,1fr);gap:18px}.fbar{padding:14px}.fl{flex-basis:100%}.btn.out{width:100%;justify-content:center}}
+.vbox{background:#000;border-radius:var(--r-m) var(--r-m) 0 0;overflow:hidden}
+.vbox video{display:block;width:100%;aspect-ratio:16/9;max-height:72vh;background:#000}
+.vtime{font-size:13px;color:var(--muted);margin:0 0 8px;font-variant-numeric:tabular-nums;min-height:18px}
+.vnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.vnav .grow{flex:1}
+.note.ok{background:var(--ok-soft);color:var(--ok)}
+.vlist li>a,.vlist li>div{display:flex;gap:12px;align-items:center;padding:10px 16px;color:inherit;text-decoration:none}
+.vlist li>a:hover{background:var(--hover)}
+.vlist li.cur{background:var(--surface2);box-shadow:inset 3px 0 0 var(--orange)}
+.vlist .lock{opacity:.55}
+.vnum{flex:none;width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;background:var(--surface2);color:var(--muted)}
+.vnum.ok{background:var(--accent);color:var(--accent-ink)}
+.vedit{list-style:none;margin:0 0 10px;padding:0}
+.vedit li{border:1px solid var(--line);border-radius:var(--r-s);padding:12px;margin-bottom:10px}
+.vhead{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
 </style>
 </head>
 <body>
@@ -453,7 +467,7 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 /* ============================================================
    Galata Wind İSG Portalı — prototip
    ============================================================ */
-const COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','iso45001','duyurular','acil','yukleniciler','kullanicilar','ayarlar','audit','eposta'];
+const COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','iso45001','duyurular','acil','yukleniciler','kullanicilar','ayarlar','videoegitim','videoilerleme','audit','eposta'];
 const ROLES={calisan:'Çalışan',yonetici:'Yönetici',isg:'İSG Departmanı'};
 const DEMO_PASS='Demo123!';
 const FALLBACK_USERS=[
@@ -514,6 +528,7 @@ clip:'M21 12l-8.5 8.5a5 5 0 0 1-7-7L14 5a3.5 3.5 0 0 1 5 5l-8.5 8.5a2 2 0 0 1-3-
 bell:'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0',file:'M6 2h9l5 5v15H6zM14 2v6h6',phone:'M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2',
 users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
 pdf:'M6 2h9l5 5v15H6zM14 2v6h6M9 15h1.5a1.5 1.5 0 0 0 0-3H9v5M14 12v5h1a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2z',chev:'M6 9l6 6 6-6',sun:'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',eye:'M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',cal:'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18',ext:'M14 3h7v7M21 3l-9 9M19 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6',funnel:'M3 4h18l-7 8v7l-4 2v-9z',sort:'M3 6h11M3 12h8M3 18h5M17 4v16M14 17l3 3 3-3',book:'M2 4h7a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v14a2 2 0 0 1 2-2h8z',docfile:'M6 2h9l5 5v15H6zM14 2v6h6M10 12h3a2 2 0 0 1 0 4h-3z',shield:'M12 3l8 4v5c0 5-3.5 9-8 10-4.5-1-8-5-8-10V7z M9 12l2 2 4-4',upload:'M12 21V9M7 14l5-5 5 5M4 21h16',
+play:'M7 4l13 8-13 8z',
 folder:'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z',copy:'M9 9h11v11H9zM5 15H4V4h11v1'
 };
 const ic=(n,cls='')=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${I[n]}"/></svg>`;
@@ -551,7 +566,7 @@ function refreshUser(){if(!S.user)return;const u=users().find(x=>x.username===S.
 async function withRetry(fn){try{return await fn();}catch(e){if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,400+Math.random()*600));return fn();}throw e;}}
 function errMsg(e){if(e&&e.userMsg)return e.userMsg;const c=e&&e.code;if(c==='quota_exceeded')return 'Kayıt kapasitesi doldu. Eski kayıtları silip tekrar deneyin.';if(c==='invalid_argument')return 'Bu kaydı kaydetme yetkiniz yok ya da kayıt çok büyük (ekleri küçültün).';if(c==='resource_exhausted')return 'Çok hızlı işlem yapıldı, birkaç saniye sonra tekrar deneyin.';return 'Kayıt yapılamadı. Bağlantınızı kontrol edip tekrar deneyin.';}
 /* --- sunucu (Cloudflare) modu --- */
-const DATA_COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','duyurular','acil','yukleniciler','kullanicilar','ayarlar'];
+const DATA_COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','duyurular','acil','yukleniciler','kullanicilar','ayarlar','videoegitim','videoilerleme'];
 async function api(method,path,body){let r;
   try{r=await fetch(path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:body?JSON.stringify(body):undefined});}
   catch(x){const e=new Error('net');e.code='unavailable';e.userMsg='Sunucuya ulaşılamadı ya da oturumunuzun süresi doldu. Sayfayı yenileyin.';throw e;}
@@ -625,7 +640,7 @@ function scope(coll){
     case 'bildirimler':return rows.filter(r=>me?r.bildiren===u.username:(r.ekip===u.ekip||r.bildiren===u.username));
     case 'dof':return rows.filter(r=>r.sorumlu===u.username||(!me&&r.ekip===u.ekip));
     case 'egitimler':return rows.filter(r=>(r.katilimcilar||[]).some(k=>me?k.u===u.username:ekipOf(k.u)===u.ekip));
-    case 'kkd':return rows.filter(r=>me?r.u===u.username:ekipOf(r.u)===u.ekip);
+    case 'kkd':case 'videoilerleme':return rows.filter(r=>me?r.u===u.username:(r.u===u.username||ekipOf(r.u)===u.ekip));
     default:return rows;
   }
 }
@@ -646,6 +661,7 @@ const MENU=[
  {k:'formlar',t:'Kontrol Formları',i:'doc',r:ALL},
  {g:'Çalışan'},
  {k:'egitim',t:'Eğitimler',i:'cap',r:ALL},
+ {k:'video',t:'Video Eğitimler',i:'play',r:ALL},
  {k:'kkd',t:'KKD Takibi',i:'helmet',r:ALL},
  {k:'dokuman',t:'Doküman Merkezi',i:'book',r:ALL},
  {k:'iso',t:'ISO 45001 Belgeleri',i:'shield',r:ALL},
@@ -659,7 +675,7 @@ const MENU=[
 function allowed(k){const m=MENU.find(x=>x.k===k);return m&&m.r.includes(S.user.rol);}
 const LINK_KIND={dof:'dof',ramak:'bildirim',kaza:'bildirim'};
 function readRoute(){const [h,id,sub]=((location.hash||'').replace(/^#\/?/,'')||'ana').split('/');S.route=allowed(h)?h:'ana';
-  const dec=x=>{try{return decodeURIComponent(x||'')}catch(e){return ''}};S.ui.formId=S.route==='formlar'?dec(id):'';S.ui.formKod=S.route==='formlar'?dec(sub):'';S.ui.link=id&&S.route===h&&LINK_KIND[h]?{kind:LINK_KIND[h],id:(()=>{try{return decodeURIComponent(id)}catch(e){return ''}})()}:null;}
+  const dec=x=>{try{return decodeURIComponent(x||'')}catch(e){return ''}};S.ui.formId=S.route==='formlar'?dec(id):'';S.ui.formKod=S.route==='formlar'?dec(sub):'';S.ui.vEg=S.route==='video'?dec(id):'';S.ui.vVid=S.route==='video'?dec(sub):'';S.ui.link=id&&S.route===h&&LINK_KIND[h]?{kind:LINK_KIND[h],id:(()=>{try{return decodeURIComponent(id)}catch(e){return ''}})()}:null;}
 // E-postadaki kayıt bağlantısı: kaydı aç, adresi sayfa adresine indir
 function openLinked(){const l=S.ui.link;if(!l)return;S.ui.link=null;history.replaceState(null,'','#/'+S.route);if(S.data[KIND_COLL[l.kind]].some(x=>x.id===l.id))openDrawer(l.kind,l.id);else toast('Kayıt bulunamadı ya da görüntüleme yetkiniz yok.','err');}
 window.addEventListener('hashchange',()=>{readRoute();S.ui.drawer=null;S.ui.dd=null;document.body.classList.remove('navopen');renderOverlay();render(true);window.scrollTo(0,0);openLinked();});
@@ -675,8 +691,11 @@ function render(){
   const a=document.activeElement;const aid=a&&a.id&&$('#main').contains(a)?a.id:null;let sel=null;try{sel=a.selectionStart}catch(e){}
   // Açık form her veri yenilemesinde sıfırlanmasın (yarım doldurulmuş form kaybolur): aynı form açıkken #main'e dokunma
   const fk=S.route==='formlar'?`formlar/${S.ui.formId}/${S.ui.formKod}`:'';
+  // İzlenen video da yeniden çizimde baştan başlamasın: aynı video açıkken oynatıcıya dokunma
+  const vk=S.route==='video'&&S.ui.vEg?`video/${S.ui.vEg}/${S.ui.vVid}`:'';
   if(fk&&S.ui.formsKey===fk&&$('#formHost')){ /* korunur */ }
-  else{S.ui.formsKey=null;$('#main').innerHTML=(VIEWS[S.route]||VIEWS.ana)();if(S.route==='formlar')mountForms();}
+  else if(vk&&S.ui.vKey===vk&&$('#vplayer')){ /* korunur */ }
+  else{S.ui.formsKey=null;S.ui.vKey=null;vStop();$('#main').innerHTML=(VIEWS[S.route]||VIEWS.ana)();if(S.route==='formlar')mountForms();if(vk)mountVideo();}
   if(aid){const el=document.getElementById(aid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
   if(S.ui.drawer)renderOverlay();
 }
@@ -712,7 +731,7 @@ function shellView(){
   <nav class="hnav" id="hnav" aria-label="Ana menü"></nav>
   <div class="layout"><nav class="nav" id="nav" aria-label="Menü"></nav><div class="scrim" data-a="nav"></div><main id="main" tabindex="-1"></main></div></div>`;
 }
-const HNAV=[{k:'ana'},{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','kkd','acil']},{k:'formlar'},{k:'dokuman'},{k:'iso'},{k:'duyuru'},{k:'rapor'},{k:'yonetim'}];
+const HNAV=[{k:'ana'},{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','video','kkd','acil']},{k:'formlar'},{k:'dokuman'},{k:'iso'},{k:'duyuru'},{k:'rapor'},{k:'yonetim'}];
 function hnavView(){
   const M=k=>MENU.find(m=>m.k===k);
   return HNAV.map((x,idx)=>{
@@ -1038,6 +1057,153 @@ async function mountForms(){
   }catch(e){S.ui.formsKey=null;if($('#formHost'))host.innerHTML='<div class="note">Form modülü yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin.</div>';}
 }
 
+/* ---------- Video eğitimleri ----------
+   videoegitim: İSG'nin tanımladığı eğitimler, her biri sıralı video listesi (dış https bağlantısı).
+   videoilerleme: kullanıcı başına ilerleme ("<eğitim>:<kullanıcı>"); sunucu modunda /api/video ile yazılır.
+   İleri sarma kapalıdır; video bitince "İleri" açılır. Sunucu da izlenen konumun gerçek süreyi aşmasına izin vermez. */
+const fmtSure=s=>{s=Math.max(0,Math.round(+s||0));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return h?`${h}:${pad(m)}:${pad(x)}`:`${m}:${pad(x)}`;};
+const parseSure=s=>{s=String(s||'').trim();if(!/^\d+(:\d{1,2}){0,2}$/.test(s))return 0;return s.split(':').reduce((a,b)=>a*60+(+b),0);};
+const vCourses=()=>[...S.data.videoegitim].sort((a,b)=>(+a.sira||0)-(+b.sira||0)||String(a.ad).localeCompare(String(b.ad),'tr'));
+const vProg=(eg,un=S.user.username)=>S.data.videoilerleme.find(p=>p.egitim===eg&&p.u===un)||null;
+const vHref=(eg,v)=>`#/video/${encodeURIComponent(eg)}${v?'/'+encodeURIComponent(v):''}`;
+function vStat(c,p){const vs=c.videolar||[];const n=vs.filter(v=>p?.tamam?.[v.id]).length;
+  return {n,top:vs.length,durum:vs.length&&n===vs.length?'Tamamlandı':(n||p?.aktif?.ileri>0)?'Devam Ediyor':'Başlamadı'};}
+
+VIEWS.video=()=>{
+  if(S.ui.vEg)return vPlayerView();
+  const canRep=isRole('isg','yonetici');const tab=canRep&&S.ui.tab.video==='rapor'?'rapor':'liste';
+  const tabs=canRep?`<div class="tabs" role="tablist"><button role="tab" aria-selected="${tab==='liste'}" data-a="vtab" data-k="liste">Eğitimler</button><button role="tab" aria-selected="${tab==='rapor'}" data-a="vtab" data-k="rapor">İzleme raporu</button></div>`:'';
+  if(tab==='rapor')return `${ph('Video eğitimler',isRole('isg')?'Çalışanların video eğitim ilerlemesi':'Ekibinizin video eğitim ilerlemesi',expBtns('videoRapor'))}${tabs}${vReport()}`;
+  const cs=vCourses();
+  return `${ph('Video eğitimler','Videoları sırayla izleyin. İleri sarma kapalıdır; bir video bitince sonraki video açılır.',isRole('isg')?`<button class="btn pri" data-a="newvideo">${ic('plus')}Eğitim ekle</button>`:'')}${tabs}
+  ${cs.length?`<div class="cardgrid">${cs.map(vCard).join('')}</div>`:`<div class="empty">${isRole('isg')?'Henüz video eğitim eklenmedi. "Eğitim ekle" ile ilk eğitimi oluşturun.':'Henüz yayında video eğitim yok.'}</div>`}`;
+};
+function vCard(c){const s=vStat(c,vProg(c.id));const total=(c.videolar||[]).reduce((a,v)=>a+(+v.sure||0),0);
+  const lbl=s.durum==='Tamamlandı'?'Tekrar izle':s.durum==='Başlamadı'?'Başla':'Devam et';
+  return `<article class="card"><div class="meta">${s.top} video${total?`, ${fmtSure(total)}`:''} ${s.top?badge(s.durum):''}</div><h4>${esc(c.ad)}</h4>
+  ${c.aciklama?`<p style="color:var(--muted);white-space:pre-wrap">${esc(c.aciklama)}</p>`:''}${s.top?`<div style="margin-top:10px">${prog(pct(s.n,s.top))}</div>`:''}
+  <div class="btns" style="margin-top:12px">${s.top?`<a class="btn pri" href="${vHref(c.id)}">${ic('play')}${lbl}</a>`:'<span class="hint">Bu eğitime henüz video eklenmedi.</span>'}${isRole('isg')?`<button class="btn" data-a="editvideo" data-id="${esc(c.id)}">${ic('edit')}Düzenle</button>`:''}</div></article>`;}
+
+/* İzleme raporu: kapsamdaki her kullanıcı × her eğitim (hiç başlamayanlar dahil) */
+function vReportRows(){const f=F('videoRapor');const q=trLower(f.q||'').trim();
+  const us=users().filter(x=>isRole('isg')||(!!S.user.ekip&&x.ekip===S.user.ekip));const out=[];
+  vCourses().filter(c=>(c.videolar||[]).length&&(!f.eg||c.id===f.eg)).forEach(c=>us.forEach(x=>{const p=vProg(c.id,x.username);const s=vStat(c,p);
+    if(f.durum&&s.durum!==f.durum)return;if(q&&!trLower(`${x.ad} ${x.ekip||''} ${c.ad}`).includes(q))return;
+    out.push({id:`${c.id}:${x.username}`,c,x,p,...s,son:Object.values(p?.tamam||{}).sort().pop()||''});}));
+  return out;}
+function vReport(){const page='videoRapor';const rows=vReportRows();S.ui.cur={page,rows};
+  return `${fbar(page,{durum:['Başlamadı','Devam Ediyor','Tamamlandı'],extra:fsel(page,'eg','Tüm eğitimler',vCourses().map(c=>({v:c.id,t:c.ad}))),right:`<span class="count">${rows.length} satır</span>`})}
+  ${table([{t:'Çalışan',r:r=>`<div class="ttl">${esc(r.x.ad)}</div><div class="sm">${esc(r.x.ekip||'')}</div>`},{t:'Eğitim',r:r=>esc(r.c.ad)},{t:'İzlenen video',r:r=>`${r.n} / ${r.top}`},{t:'İlerleme',r:r=>prog(pct(r.n,r.top))},{t:'Son tamamlama',r:r=>r.son?fmtDT(r.son):'—'},{t:'Durum',r:r=>badge(r.durum)},
+    ...(isRole('isg')?[{t:'',r:r=>r.p?`<button class="btn sm" data-a="vreset" data-id="${esc(r.p.id)}">Sıfırla</button>`:''}]:[])],rows,{empty:vCourses().some(c=>(c.videolar||[]).length)?'Filtrelere uyan kayıt yok.':'Henüz videosu olan eğitim yok.'})}`;}
+
+/* Oynatıcı */
+function vResolve(){const c=S.data.videoegitim.find(x=>x.id===S.ui.vEg);if(!c)return null;const vs=c.videolar||[];const p=vProg(c.id);
+  const done=v=>!!p?.tamam?.[v.id];const unlocked=i=>vs.slice(0,i).every(done);
+  let i=vs.findIndex(v=>v.id===S.ui.vVid);
+  if(i<0||!unlocked(i)){const a=p?.aktif?.v?vs.findIndex(v=>v.id===p.aktif.v):-1;const fo=vs.findIndex(v=>!done(v));i=a>=0&&unlocked(a)?a:fo>=0?fo:vs.length?0:-1;}
+  return {c,vs,p,i,done,unlocked};}
+function vPlayerView(){const r=vResolve();const back=`<a class="btn" href="#/video">${ic('grid')}Tüm eğitimler</a>`;
+  if(!r)return `${ph('Video eğitimler','',back)}<div class="empty">Eğitim bulunamadı ya da kaldırıldı.</div>`;
+  if(r.i<0)return `${ph(esc(r.c.ad),'',back)}<div class="empty">Bu eğitime henüz video eklenmedi.</div>`;
+  const v=r.vs[r.i],last=r.i===r.vs.length-1;
+  return `${ph(esc(r.c.ad),`${r.i+1} / ${r.vs.length}. video`,back)}
+  <div class="cols"><section class="panel c8"><div class="vbox"><video id="vplayer" controls playsinline preload="metadata" controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture disableremoteplayback src="${esc(v.url)}"></video></div>
+   <div class="pb" style="padding-top:14px"><h2 style="margin:0 0 4px;font-size:17px">${esc(v.baslik)}</h2>${v.aciklama?`<p style="margin:0 0 10px;color:var(--muted);white-space:pre-wrap">${esc(v.aciklama)}</p>`:''}
+   <div class="vtime" id="vTime"></div><div id="vStatus" class="note info" role="status"></div>
+   <div class="vnav"><button class="btn" data-a="vprev" ${r.i?'':'disabled'}>Önceki video</button><span class="grow"></span><button class="btn pri" id="vNext" data-a="vnext" disabled>${last?'Eğitimi bitir':'İleri'}</button></div></div></section>
+   <section class="panel c4"><h3>Videolar</h3><ol class="list vlist" id="vList">${vListHtml(r)}</ol></section></div>`;}
+function vListHtml(r){return r.vs.map((v,j)=>{const d=r.done(v),u=r.unlocked(j),cur=j===r.i;
+  const inner=`<span class="vnum ${d?'ok':''}" aria-hidden="true">${d?'✓':j+1}</span><span class="m"><b>${esc(v.baslik)}</b><small>${v.sure?fmtSure(v.sure)+', ':''}${d?'Tamamlandı':cur?'İzleniyor':u?'Sıradaki':'Kilitli: önceki videoyu tamamlayın'}</small></span>`;
+  return `<li${cur?' class="cur" aria-current="true"':''}>${u&&!cur?`<a href="${vHref(r.c.id,v.id)}">${inner}</a>`:`<div class="${u?'':'lock'}">${inner}</div>`}</li>`;}).join('');}
+function mountVideo(){const r=vResolve();const el=$('#vplayer');if(!r||r.i<0||!el)return;const v=r.vs[r.i];
+  if(S.ui.vVid!==v.id){S.ui.vVid=v.id;history.replaceState(null,'',vHref(r.c.id,v.id));}
+  S.ui.vKey=`video/${S.ui.vEg}/${S.ui.vVid}`;
+  const a=r.p?.aktif?.v===v.id?r.p.aktif:null,done=r.done(v);
+  const st={c:r.c,v,i:r.i,el,done,max:a?.ileri||0,start:a&&!done?a.t||0:0,lastSave:0,warnAt:0,started:false,busy:false};S.vp=st;
+  el.addEventListener('loadedmetadata',()=>{if(st.start>1&&st.start<el.duration-1)el.currentTime=Math.min(st.start,st.max);vUi();});
+  el.addEventListener('timeupdate',()=>{if(!el.seeking&&el.currentTime<=st.max+2)st.max=Math.max(st.max,el.currentTime);
+    if(!st.done&&!el.paused&&Date.now()-st.lastSave>15000)vSave();vUi();});
+  el.addEventListener('seeking',()=>{if(st.done||el.currentTime<=st.max+1)return;el.currentTime=st.max;
+    if(Date.now()-st.warnAt>4000){st.warnAt=Date.now();toast('İleri sarma kapalıdır. Videoyu kaldığınız yerden izlemeye devam edin.','err');}});
+  el.addEventListener('ratechange',()=>{if(!st.done&&el.playbackRate!==1)el.playbackRate=1;});
+  el.addEventListener('play',()=>{if(!st.started){st.started=true;if(!st.done)vSave();}});
+  el.addEventListener('pause',()=>{if(!st.done&&!el.ended)vSave();});
+  el.addEventListener('ended',()=>{if(!st.done)vComplete();});
+  el.addEventListener('error',()=>{const s=$('#vStatus');if(s){s.className='note danger';s.textContent='Video yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin; sorun sürerse İSG departmanına bildirin.';}});
+  vUi();}
+function vUi(){const st=S.vp;if(!st)return;const el=st.el,s=$('#vStatus'),n=$('#vNext'),t=$('#vTime');if(!s||!n)return;
+  n.disabled=!st.done;const d=isFinite(el.duration)&&el.duration?el.duration:st.v.sure||0;
+  if(t){const x=st.done?'':`İzlenen: ${fmtSure(st.max)}${d?` / ${fmtSure(d)}`:''}`;if(t.textContent!==x)t.textContent=x;}
+  if(el.error)return;const last=st.i===(st.c.videolar||[]).length-1;
+  const txt=st.done?(last?'Tebrikler, bu eğitimdeki tüm videoları tamamladınız.':'Bu video tamamlandı. Sonraki videoya geçmek için "İleri"ye basın.'):'İleri sarma kapalıdır. Video sonuna kadar izlendiğinde "İleri" düğmesi açılır.';
+  if(s.textContent!==txt){s.textContent=txt;s.className='note '+(st.done?'ok':'info');}}
+function vStore(id,data){const a=S.data.videoilerleme;const rec={...data,id};const i=a.findIndex(x=>x.id===id);if(i>=0)a[i]=rec;else a.push(rec);}
+function vBody(st,bitti){const el=st.el;return {egitim:st.c.id,video:st.v.id,t:el.currentTime||0,ileri:st.max,sure:isFinite(el.duration)?el.duration:0,bitti:!!bitti};}
+async function vPost(st,bitti){const b=vBody(st,bitti);
+  if(S.api){const j=await api('POST','/api/video',b);vStore(j.id,j.data);return;}
+  // Yerel prototip modu: sunucu denetimi yok, ilerleme bu tarayıcıda/veritabanında tutulur
+  const id=`${st.c.id}:${S.user.username}`,old=S.data.videoilerleme.find(x=>x.id===id)||{},now=new Date().toISOString();
+  const vs=st.c.videolar||[],tamam={...(old.tamam||{})};if(bitti)tamam[st.v.id]=tamam[st.v.id]||now;const nx=vs[st.i+1];
+  const aktif=bitti?(nx?{v:nx.id,t:0,ileri:0}:null):old.tamam?.[st.v.id]?(old.aktif||null):{v:st.v.id,t:b.t,ileri:b.ileri};
+  await put('videoilerleme',id,{u:S.user.username,ekip:S.user.ekip||'',egitim:st.c.id,tamam,aktif,baslama:old.baslama||now,bitis:vs.every(v=>tamam[v.id])?(old.bitis||now):'',guncelleme:now});
+  if(bitti)audit('Video tamamlandı','videoilerleme',id,`${st.c.ad}: ${st.v.baslik}`);}
+function vSave(){const st=S.vp;if(!st||st.done)return;st.lastSave=Date.now();vPost(st).catch(()=>{});}
+async function vComplete(){const st=S.vp;if(!st||st.busy)return;st.busy=true;
+  try{await vPost(st,true);st.done=true;toast('Video tamamlandı.');}catch(e){toast(errMsg(e),'err');}
+  st.busy=false;if(S.vp!==st)return;const r=vResolve(),l=$('#vList');if(r&&l)l.innerHTML=vListHtml(r);vUi();if(st.done)$('#vNext')?.focus();}
+function vStop(){const st=S.vp;if(!st)return;S.vp=null;try{st.el.pause();}catch(e){}if(st.started&&!st.done)vPost(st).catch(()=>{});}
+// Sekme kapanırken son konumu kaydet
+window.addEventListener('pagehide',()=>{const st=S.vp;if(!st||!st.started||st.done)return;
+  if(S.api){try{fetch('/api/video',{method:'POST',keepalive:true,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(vBody(st))});}catch(e){}}else vPost(st).catch(()=>{});});
+document.addEventListener('visibilitychange',()=>{if(document.hidden)vSave();});
+
+/* Eğitim tanımı (yalnızca İSG): ad, açıklama ve sıralı video listesi */
+function vProbe(url){return new Promise(res=>{const v=document.createElement('video');v.preload='metadata';v.muted=true;let ok=false;
+  const fin=x=>{if(ok)return;ok=true;clearTimeout(tm);v.removeAttribute('src');try{v.load();}catch(e){}res(x);};
+  const tm=setTimeout(()=>fin(0),15000);v.onloadedmetadata=()=>fin(isFinite(v.duration)?Math.round(v.duration):0);v.onerror=()=>fin(0);v.src=url;});}
+function openVideoForm(rec){
+  let vids=(rec?.videolar||[]).map(v=>({...v,sureTxt:v.sure?fmtSure(v.sure):''}));if(!vids.length)vids=[{id:newId('v'),baslik:'',url:'',sureTxt:'',aciklama:''}];
+  const host=document.createElement('div');host.id='modalHost';
+  host.innerHTML=`<div class="modal-bg"></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><form novalidate><div class="dh"><h2 id="mTitle" style="flex:1">${rec?'Video eğitimi düzenle':'Video eğitim ekle'}</h2><button type="button" class="sbtn" style="color:var(--text)" data-a="closeModal" aria-label="Kapat">${ic('x')}</button></div>
+  <div class="db"><div class="fgrid">${fieldHtml({k:'ad',t:'Eğitim adı',req:true,wide:true},rec?.ad)}${fieldHtml({k:'aciklama',t:'Açıklama',type:'textarea',rows:2,wide:true},rec?.aciklama)}${fieldHtml({k:'sira',t:'Listeleme sırası',type:'number',min:0,help:'Küçük sayı listede önce gösterilir.'},rec?.sira??'')}</div>
+  <div class="sec">Videolar (izlenme sırasıyla)</div>
+  <div class="note info">Her video için doğrudan video dosyasına giden, herkesin açabildiği bir https bağlantısı girin (ör. https://…/video.mp4). YouTube sayfa bağlantıları bu oynatıcıda çalışmaz. Süre, bağlantı girildiğinde otomatik okunur; okunamazsa elle girin.</div>
+  <ol class="vedit" id="vEdit"></ol><button type="button" class="btn" data-v="add">${ic('plus')}Video ekle</button>
+  <div id="mErr" class="hint" style="color:var(--danger);margin-top:10px" role="alert"></div></div>
+  <div class="df"><button class="btn pri" type="submit">Kaydet</button><button class="btn" type="button" data-a="closeModal">Vazgeç</button>${rec?`<span class="grow" style="flex:1"></span><button class="btn danger" type="button" data-v="del">${ic('trash')}Eğitimi sil</button>`:''}</div></form></div>`;
+  $('#modalHost')?.remove();$('#overlay').appendChild(host);const form=host.querySelector('form'),list=host.querySelector('#vEdit'),err=host.querySelector('#mErr');
+  const sync=()=>list.querySelectorAll('li').forEach((li,i)=>li.querySelectorAll('[data-k]').forEach(inp=>{vids[i][inp.dataset.k]=inp.value.trim();}));
+  const draw=()=>{list.innerHTML=vids.map((v,i)=>`<li><div class="vhead"><span class="vnum">${i+1}</span><b style="flex:1">${i+1}. video</b>
+    <button type="button" class="btn sm" data-v="up" data-i="${i}" ${i?'':'disabled'} aria-label="${i+1}. videoyu yukarı taşı">↑</button><button type="button" class="btn sm" data-v="down" data-i="${i}" ${i<vids.length-1?'':'disabled'} aria-label="${i+1}. videoyu aşağı taşı">↓</button><button type="button" class="btn sm" data-v="rm" data-i="${i}">${ic('trash')}Kaldır</button></div>
+    <div class="fgrid"><div class="fld wide"><label for="vb-${i}">Başlık <span class="req" aria-hidden="true">*</span></label><input id="vb-${i}" data-k="baslik" value="${esc(v.baslik)}"></div>
+    <div class="fld wide"><label for="vu-${i}">Video bağlantısı (https) <span class="req" aria-hidden="true">*</span></label><input id="vu-${i}" type="url" data-k="url" value="${esc(v.url)}" placeholder="https://…/video.mp4"></div>
+    <div class="fld"><label for="vs-${i}">Süre (dk:sn)</label><input id="vs-${i}" data-k="sureTxt" value="${esc(v.sureTxt)}" placeholder="otomatik"><small class="hint" id="vh-${i}"></small></div>
+    <div class="fld"><label for="va-${i}">Kısa açıklama</label><input id="va-${i}" data-k="aciklama" value="${esc(v.aciklama||'')}"></div></div></li>`).join('');};
+  const probe=async i=>{const v=vids[i],h=host.querySelector('#vh-'+i);if(!/^https:\/\//i.test(v.url))return 0;if(h)h.textContent='Süre okunuyor…';
+    const d=await vProbe(v.url);const h2=host.querySelector('#vh-'+i);
+    if(d){v.sureTxt=fmtSure(d);const s=host.querySelector('#vs-'+i);if(s&&vids[i]===v)s.value=v.sureTxt;if(h2)h2.textContent='';}
+    else if(h2)h2.textContent='Video açılamadı. Bağlantıyı kontrol edin ya da süreyi elle girin.';return d;};
+  draw();
+  host.addEventListener('change',e=>{const t=e.target;if(t.dataset.k!=='url')return;sync();const i=[...list.querySelectorAll('li')].indexOf(t.closest('li'));if(i>=0){vids[i].sureTxt='';const s=host.querySelector('#vs-'+i);if(s)s.value='';probe(i);}});
+  host.addEventListener('click',e=>{const b=e.target.closest('[data-v]');if(!b)return;sync();const i=+b.dataset.i;
+    if(b.dataset.v==='add'){vids.push({id:newId('v'),baslik:'',url:'',sureTxt:'',aciklama:''});draw();host.querySelector(`#vb-${vids.length-1}`)?.focus();}
+    else if(b.dataset.v==='rm'){vids.splice(i,1);draw();}
+    else if(b.dataset.v==='up'&&i>0){[vids[i-1],vids[i]]=[vids[i],vids[i-1]];draw();}
+    else if(b.dataset.v==='down'&&i<vids.length-1){[vids[i+1],vids[i]]=[vids[i],vids[i+1]];draw();}
+    else if(b.dataset.v==='del'){closeModal();confirmDel('videoegitim',rec.id);}});
+  setTimeout(()=>form.elements.ad?.focus(),30);
+  form.addEventListener('submit',async e=>{e.preventDefault();sync();err.textContent='';
+    const ad=form.elements.ad.value.trim();if(!ad){err.textContent='Eğitim adını girin.';form.elements.ad.focus();return;}
+    const list2=vids.filter(v=>v.baslik||v.url);
+    const bad=list2.findIndex(v=>!v.baslik||!/^https:\/\/\S+$/i.test(v.url));if(bad>=0){err.textContent=`${vids.indexOf(list2[bad])+1}. video: başlık ve https:// ile başlayan bağlantı gerekli.`;return;}
+    const btn=form.querySelector('[type=submit]');btn.disabled=true;btn.textContent='Kaydediliyor…';
+    try{for(const v of list2){if(!parseSure(v.sureTxt)){const d=await probe(vids.indexOf(v));if(!d){const x=new Error('sure');x.userMsg=`"${v.baslik}" videosunun süresi okunamadı. Bağlantıyı kontrol edin ya da süreyi dk:sn olarak elle girin.`;throw x;}}}
+      const videolar=list2.map(v=>({id:v.id,baslik:v.baslik,url:v.url,sure:parseSure(v.sureTxt),aciklama:v.aciklama||''}));
+      const s=form.elements.sira.value;await saveRec('videoegitim',rec?.id,{ad,aciklama:form.elements.aciklama.value.trim(),sira:s===''?null:Number(s),videolar},ad);
+      closeModal();toast(rec?'Eğitim güncellendi.':'Video eğitim eklendi.');}
+    catch(ex){err.textContent=ex&&ex.userMsg?ex.userMsg:errMsg(ex);btn.disabled=false;btn.textContent='Kaydet';}});
+}
+
 VIEWS.rapor=()=>{
   const ay=S.ui.rpAy||ym(today());const bil=scope('bildirimler').filter(b=>ym(b.tarih)===ay);const dof=scope('dof');
   const kz=bil.filter(b=>b.tur==='kaza');const kayip=kz.reduce((a,b)=>a+(+b.kayipGun||0),0);
@@ -1318,6 +1484,7 @@ const EXPORTS={
   iso:{t:'ISO 45001 doküman listesi',rows:all=>all?S.data.iso45001:S.ui.cur?.rows,cols:[['Kod','kod'],['Doküman','ad'],['Madde','madde'],['Kategori','kategori'],['Sorumlu',r=>nameOf(r.sorumlu)],['Güncel rev.',r=>latestRev(r).no??'0'],['Revizyon tarihi',r=>fmtD(latestRev(r).revTarih)],['Yükleme tarihi',r=>fmtD(latestRev(r).yuklemeTarihi)],['Gözden geçirme',r=>fmtD(r.gozdenGecirme)],['Durum','durum']]},
   dokuman:{t:'Doküman listesi',rows:all=>all?S.data.dokumanlar:S.ui.cur?.rows,cols:[['Kod','kod'],['Süreç','surec'],['Doküman','ad'],['Kategori','kategori'],['Revizyon','versiyon'],['Revizyon tarihi',r=>fmtD(r.yayinTarihi)]]},
   yuklenici:{t:'Yükleniciler',rows:all=>all?S.data.yukleniciler:S.ui.cur?.rows,cols:[['Firma','firma'],['Faaliyet','faaliyet'],['Saha','saha'],['Çalışan sayısı','calisanSayisi'],['Belgeler',r=>`${(r.belgeler||[]).length}/${YUK_BELGE.length}`],['Açık uygunsuzluk',r=>(r.uygunsuzluklar||[]).filter(x=>x.durum!=='Kapandı').length],['Son denetim',r=>fmtD(r.sonDenetim)],['Durum','durum']]},
+  videoRapor:{t:'Video eğitim izleme raporu',rows:()=>vReportRows(),cols:[['Çalışan',r=>r.x.ad],['Ekip',r=>r.x.ekip],['Eğitim',r=>r.c.ad],['İzlenen video',r=>r.n],['Toplam video',r=>r.top],['İlerleme %',r=>pct(r.n,r.top)],['Durum','durum'],['Başlama',r=>r.p?.baslama?fmtDT(r.p.baslama):''],['Bitiş',r=>r.durum==='Tamamlandı'&&r.p?.bitis?fmtDT(r.p.bitis):''],['Tamamlanan videolar',r=>(r.c.videolar||[]).filter(v=>r.p?.tamam?.[v.id]).map(v=>`${v.baslik} (${fmtDT(r.p.tamam[v.id])})`).join('; ')]]},
   audit:{t:'Kayıt geçmişi',rows:all=>all?S.data.audit.flatMap(d=>d.kayitlar||[]).sort((a,b)=>b.ts.localeCompare(a.ts)):S.ui.cur?.rows,cols:[['Zaman',r=>fmtDT(r.ts)],['Kullanıcı',r=>nameOf(r.u)],['İşlem','islem'],['Modül','coll'],['Kayıt','detay']]}
 };
 const cellOf=(c,r)=>{const v=typeof c[1]==='function'?c[1](r):r[c[1]];return v==null?'':v;};
@@ -1370,6 +1537,12 @@ const A={
   newegitim:()=>openEgitimForm(),editegitim:el=>openEgitimForm(S.data.egitimler.find(x=>x.id===el.dataset.id)),
   katToggle:async el=>{const r=S.data.egitimler.find(x=>x.id===el.dataset.id);const k=(r.katilimcilar||[]).map(p=>p.u===el.dataset.u?{...p,d:p.d==='Tamamlandı'?'Bekliyor':'Tamamlandı'}:p);try{await patchRec('egitimler',r.id,{katilimcilar:k},'Katılım güncellendi',`${r.ad}: ${nameOf(el.dataset.u)}`);}catch(e){toast(errMsg(e),'err');}},
   allDone:async el=>{const r=S.data.egitimler.find(x=>x.id===el.dataset.id);try{await patchRec('egitimler',r.id,{katilimcilar:(r.katilimcilar||[]).map(p=>({...p,d:'Tamamlandı'}))},'Katılım güncellendi',`${r.ad}: tümü tamamlandı`);toast('Tüm katılımcılar tamamlandı olarak işaretlendi.');}catch(e){toast(errMsg(e),'err');}},
+  vtab:el=>{S.ui.tab.video=el.dataset.k;render();},
+  newvideo:()=>openVideoForm(),editvideo:el=>openVideoForm(S.data.videoegitim.find(x=>x.id===el.dataset.id)),
+  vnext:()=>{const st=S.vp;if(!st||!st.done)return;const nx=(st.c.videolar||[])[st.i+1];if(nx)location.hash=vHref(st.c.id,nx.id);else{toast('Eğitimi tamamladınız.');location.hash='#/video';}},
+  vprev:()=>{const st=S.vp;const pv=st&&(st.c.videolar||[])[st.i-1];if(pv)location.hash=vHref(st.c.id,pv.id);},
+  vreset:el=>{const p=S.data.videoilerleme.find(x=>x.id===el.dataset.id);if(!p)return;const c=S.data.videoegitim.find(x=>x.id===p.egitim);const det=`${nameOf(p.u)}: ${c?.ad||p.egitim}`;
+    openForm({title:'İlerlemeyi sıfırla',intro:`<p>${esc(det)} eğitiminin izleme ilerlemesi silinecek; çalışan eğitime baştan başlar. İşlem kayıt geçmişine yazılır.</p>`,fields:[],submit:'Sıfırla',onSubmit:async()=>{await removeDoc('videoilerleme',p.id,{islem:'İlerleme sıfırlandı',detay:det});audit('İlerleme sıfırlandı','videoilerleme',p.id,det);toast('İlerleme sıfırlandı.');}});},
   newkkd:()=>openKkdForm(),editkkd:el=>openKkdForm(S.data.kkd.find(x=>x.id===el.dataset.id)),
   kkdOnay:async el=>{const r=S.data.kkd.find(x=>x.id===el.dataset.id);try{await patchRec('kkd',r.id,{durum:'Teslim Edildi',onay:new Date().toISOString()},'Çalışan teslim onayı',`${r.ekipman}, ${nameOf(r.u)}`);toast('Teslim onayınız kaydedildi.');}catch(e){toast(errMsg(e),'err');}},
   newdok:()=>openDokForm(),editdok:el=>openDokForm(S.data.dokumanlar.find(x=>x.id===el.dataset.id)),

@@ -12,7 +12,7 @@
 const INDEX_HTML = /*__INDEX_HTML__*/null;
 
 const DOC_COLLS = new Set(['bildirimler', 'dof', 'risk', 'egitimler', 'kkd', 'dokumanlar', 'iso45001',
-  'duyurular', 'acil', 'yukleniciler', 'kullanicilar', 'ayarlar']);
+  'duyurular', 'acil', 'yukleniciler', 'kullanicilar', 'ayarlar', 'videoegitim', 'videoilerleme']);
 const LOG_KINDS = new Set(['audit', 'eposta']);
 // Tamamlanmış İSG form kayıtları: DOC_COLLS dışında; /api/data ile herkese dağıtılmaz, /api/form üzerinden okunur
 const FORM_COLL = 'formkayitlari';
@@ -37,6 +37,8 @@ const SEC_HEADERS = {
     "img-src 'self' data: blob:",
     "connect-src 'self' https://cdn.jsdelivr.net",
     "worker-src 'self' blob:",
+    // Video eğitimleri dış bağlantıdan (https) oynatılır
+    "media-src 'self' https:",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -156,7 +158,8 @@ function canSee(u, coll, d, ekipOf) {
     case 'bildirimler': return d.bildiren === me || (mgr && !!u.ekip && d.ekip === u.ekip);
     case 'dof': return d.sorumlu === me || (mgr && !!u.ekip && d.ekip === u.ekip);
     case 'egitimler': return (d.katilimcilar || []).some(k => k && (k.u === me || (mgr && !!u.ekip && ekipOf(k.u) === u.ekip)));
-    case 'kkd': return d.u === me || (mgr && !!u.ekip && ekipOf(d.u) === u.ekip);
+    case 'kkd':
+    case VIDEO_PROG: return d.u === me || (mgr && !!u.ekip && ekipOf(d.u) === u.ekip);
     case FORM_COLL: return false;   // formVisible() ile, yalnızca /api/form üzerinden
     default: return true;
   }
@@ -286,8 +289,10 @@ async function putDoc(env, u, coll, id, body) {
   const old = cur ? parse(cur.data) : null;
   if (old && !canSee(u, coll, old, (await userIndex(env)).ekipOf)) deny();
 
+  if (coll === VIDEO_PROG) deny('İzleme ilerlemesi yalnızca video oynatıcı üzerinden kaydedilir.');
   const rec = authorize(u, coll, old, data);
   delete rec.id;
+  if (coll === VIDEO_COURSE) cleanCourse(rec);
   const nowMs = Date.now(), nowIso = new Date(nowMs).toISOString();
   rec.olusturan = old ? (old.olusturan ?? rec.olusturan ?? '') : u.username;
   rec.olusturma = old ? (old.olusturma ?? rec.olusturma ?? nowIso) : nowIso;
@@ -402,6 +407,86 @@ async function deleteForm(env, u, no) {
   if (!r.meta.changes) throw new HttpError(404, 'Kayıt bulunamadı.');
   await writeAudit(env, { u: u.username, islem: 'Silme', coll: FORM_COLL, kayit: no, detay: str(no, 160) });
   return json({ ok: true });
+}
+
+/* ---------------- video eğitimleri ---------------- */
+// videoegitim: İSG'nin tanımladığı eğitimler; her biri sıralı video listesi (dış https bağlantısı) içerir.
+// videoilerleme: kullanıcı başına eğitim ilerlemesi (id "<eğitim>:<kullanıcı>"); yalnızca /api/video ile yazılır.
+// İleri sarma engeli: tarayıcı ileri atlamayı geri alır; sunucu da izlenen konumun, videonun açılışından bu yana
+// geçen gerçek süreyi aşmasına izin vermez. Bir video ancak önceki videolar tamamlandıysa tamamlanabilir.
+const VIDEO_COURSE = 'videoegitim', VIDEO_PROG = 'videoilerleme';
+const VID_ID_RE = /^[\p{L}\p{N}_.-]{1,60}$/u;
+const VID_RATE = 1.25, VID_SLACK_S = 5, VID_END_S = 3;
+function cleanCourse(rec) {
+  rec.ad = str(rec.ad, 200).trim();
+  if (!rec.ad) throw new HttpError(400, 'Eğitim adı gerekli.');
+  rec.aciklama = str(rec.aciklama, 2000);
+  const list = Array.isArray(rec.videolar) ? rec.videolar.slice(0, 200) : [];
+  const seen = new Set();
+  rec.videolar = list.map(v => {
+    const id = str(v && v.id, 60), url = str(v && v.url, 2000).trim();
+    if (!VID_ID_RE.test(id) || seen.has(id)) throw new HttpError(400, 'Geçersiz video kimliği.');
+    if (!/^https:\/\/[^\s"'<>]+$/i.test(url)) throw new HttpError(400, 'Video bağlantısı https:// ile başlamalı.');
+    seen.add(id);
+    return { id, baslik: str(v.baslik, 200).trim() || 'Video', url, sure: Math.max(0, Math.min(86400, Math.round(Number(v.sure) || 0))), aciklama: str(v.aciklama, 1000) };
+  });
+}
+
+async function postVideo(env, u, body) {
+  const egitim = str(body && body.egitim, 120), video = str(body && body.video, 60);
+  if (!/^[\p{L}\p{N}_.:@-]{1,80}$/u.test(egitim) || !VID_ID_RE.test(video)) throw new HttpError(400, 'Geçersiz istek.');
+  const row = await env.DB.prepare('SELECT data FROM docs WHERE coll = ?1 AND id = ?2 AND deleted = 0').bind(VIDEO_COURSE, egitim).first();
+  const course = row && parse(row.data);
+  if (!course) throw new HttpError(404, 'Eğitim bulunamadı.');
+  const vids = Array.isArray(course.videolar) ? course.videolar : [];
+  const idx = vids.findIndex(v => v.id === video);
+  if (idx < 0) throw new HttpError(404, 'Video bulunamadı.');
+
+  const id = `${egitim}:${u.username}`;
+  const cur = await env.DB.prepare('SELECT data, deleted FROM docs WHERE coll = ?1 AND id = ?2').bind(VIDEO_PROG, id).first();
+  const old = cur && !cur.deleted ? parse(cur.data) || {} : {};
+  const tamam = old.tamam && typeof old.tamam === 'object' ? { ...old.tamam } : {};
+  if (vids.slice(0, idx).some(v => !tamam[v.id])) throw new HttpError(409, 'Önce önceki videoları tamamlayın.');
+
+  const now = Date.now(), nowIso = new Date(now).toISOString();
+  const num = (x, max) => Math.max(0, Math.min(max, Number(x) || 0));
+  const t = num(body.t, 86400);
+  const prev = old.aktif && old.aktif.v === video ? old.aktif : null;
+  const bas = prev && prev.bas ? prev.bas : now;
+  // İzlenen konum, videonun ilk açılışından bu yana geçen gerçek süreyi (küçük bir payla) aşamaz
+  const cap = (now - bas) / 1000 * VID_RATE + VID_SLACK_S;
+  const ileri = Math.max(prev ? prev.ileri || 0 : 0, Math.min(num(body.ileri, 86400), cap));
+  let aktif = { v: video, t: Math.min(t, ileri + VID_SLACK_S), ileri, bas, son: now };
+  let tamamlandi = false;
+
+  if (body.bitti && !tamam[video]) {
+    const sure = vids[idx].sure || num(body.sure, 86400);
+    if (!sure) throw new HttpError(400, 'Video süresi bilinmiyor; İSG departmanına bildirin.');
+    if (ileri < sure - VID_END_S) throw new HttpError(409, 'Video sonuna kadar izlenmeden tamamlanamaz.');
+    tamam[video] = nowIso;
+    tamamlandi = true;
+    const next = vids[idx + 1];
+    aktif = next ? { v: next.id, t: 0, ileri: 0, bas: now, son: now } : null;
+  } else if (tamam[video] && !prev) {
+    aktif = old.aktif || null;   // tamamlanmış videoyu tekrar izlemek, kaldığı yeri değiştirmez
+  }
+
+  const rec = {
+    u: u.username, ekip: u.ekip || '', egitim, tamam, aktif,
+    baslama: old.baslama || nowIso,
+    bitis: vids.every(v => tamam[v.id]) ? (old.bitis || nowIso) : '',
+    guncelleme: nowIso,
+  };
+  const saved = await env.DB.prepare(
+    `INSERT INTO docs (coll, id, data, deleted, updated_at, updated_by) VALUES (?1, ?2, ?3, 0, ?4, ?5)
+     ON CONFLICT (coll, id) DO UPDATE SET data = excluded.data, deleted = 0, updated_at = excluded.updated_at, updated_by = excluded.updated_by
+     RETURNING data`
+  ).bind(VIDEO_PROG, id, JSON.stringify(rec), now, u.eposta).first();
+  if (tamamlandi) {
+    await writeAudit(env, { u: u.username, islem: rec.bitis && !old.bitis ? 'Video eğitimi tamamlandı' : 'Video tamamlandı', coll: VIDEO_PROG, kayit: id,
+      detay: str(`${course.ad}: ${vids[idx].baslik}`, 160) });
+  }
+  return json({ ok: true, id, data: parse(saved.data) });
 }
 
 async function postLog(env, u, kind, body) {
@@ -634,6 +719,7 @@ async function handleApi(req, env, url) {
     if (p.length === 2 && req.method === 'POST') return createForm(env, u, await readBody(req));
     if (p.length === 3 && req.method === 'DELETE' && /^[A-Z0-9-]{8,60}$/.test(p[2])) return deleteForm(env, u, p[2]);
   }
+  if (p[1] === 'video' && p.length === 2 && req.method === 'POST') return postVideo(env, u, await readBody(req));
   if (p[1] === 'log' && p.length === 3 && req.method === 'POST') {
     if (!LOG_KINDS.has(p[2])) return fail(404, 'Bilinmeyen kayıt türü.');
     return postLog(env, u, p[2], await readBody(req));
