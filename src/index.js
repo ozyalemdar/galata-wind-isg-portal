@@ -31,7 +31,7 @@ const LOG_DAYS = 45;
 const SEC_HEADERS = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.youtube.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob:",
@@ -39,6 +39,8 @@ const SEC_HEADERS = {
     "worker-src 'self' blob:",
     // Video eğitimleri dış bağlantıdan (https) oynatılır
     "media-src 'self' https:",
+    // YouTube videoları gizlilik odaklı gömme adresiyle (youtube-nocookie) oynatılır
+    "frame-src https://www.youtube-nocookie.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

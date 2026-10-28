@@ -444,7 +444,7 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 @media (max-width:1180px){.hnav{display:none}#navBtn{display:inline-flex}.topbar{position:sticky;top:0;z-index:30;height:64px}}
 @media (max-width:640px){.logo .lt{font-size:17px}.logo img{height:40px}.topbar .gsearch{display:none}.kbgrid{grid-template-columns:minmax(0,1fr);gap:18px}.fbar{padding:14px}.fl{flex-basis:100%}.btn.out{width:100%;justify-content:center}}
 .vbox{background:#000;border-radius:var(--r-m) var(--r-m) 0 0;overflow:hidden}
-.vbox video{display:block;width:100%;aspect-ratio:16/9;max-height:72vh;background:#000}
+.vbox video,.vbox iframe,.vbox .ytph{display:block;width:100%;aspect-ratio:16/9;max-height:72vh;background:#000;border:0}
 .vtime{font-size:13px;color:var(--muted);margin:0 0 8px;font-variant-numeric:tabular-nums;min-height:18px}
 .vnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.vnav .grow{flex:1}
 .note.ok{background:var(--ok-soft);color:var(--ok)}
@@ -1069,6 +1069,49 @@ const vHref=(eg,v)=>`#/video/${encodeURIComponent(eg)}${v?'/'+encodeURIComponent
 function vStat(c,p){const vs=c.videolar||[];const n=vs.filter(v=>p?.tamam?.[v.id]).length;
   return {n,top:vs.length,durum:vs.length&&n===vs.length?'Tamamlandı':(n||p?.aktif?.ileri>0)?'Devam Ediyor':'Başlamadı'};}
 
+/* YouTube: bağlantıdan video kimliği çıkarılır (watch, youtu.be, embed, shorts, live). Oynatıcı, <video> ile aynı olayları/özellikleri
+   veren küçük bir bağdaştırıcıdır; böylece ileri sarma kilidi ve ilerleme kaydı mountVideo içinde aynen çalışır. */
+function ytId(u){try{const x=new URL(u);const h=x.hostname.replace(/^(www|m)\./,'');let id='';
+  if(h==='youtu.be')id=x.pathname.slice(1).split('/')[0];
+  else if(h==='youtube.com'||h==='youtube-nocookie.com'){if(x.pathname==='/watch')id=x.searchParams.get('v')||'';else{const m=x.pathname.match(/^\/(?:embed|shorts|live|v)\/([^/?#]+)/);id=m?m[1]:'';}}
+  return /^[\w-]{11}$/.test(id)?id:'';}catch(e){return '';}}
+const isYtHost=u=>{try{return /^(www\.|m\.)?(youtube\.com|youtube-nocookie\.com|youtu\.be)$/.test(new URL(u).hostname);}catch(e){return false;}};
+const YT_HOST='https://www.youtube-nocookie.com';let ytApi=null;
+function ytLoad(){return ytApi||(ytApi=new Promise((res,rej)=>{if(window.YT&&YT.Player)return res();
+  const prev=window.onYouTubeIframeAPIReady;window.onYouTubeIframeAPIReady=()=>{if(prev)prev();res();};
+  const s=document.createElement('script');s.src='https://www.youtube.com/iframe_api';s.onerror=()=>{ytApi=null;rej(new Error('yt'));};document.head.appendChild(s);}));}
+class YtEl extends EventTarget{
+  constructor(host,id,o){super();Object.assign(this,{error:null,seeking:false,paused:true,ended:false,_t:o.start||0,_last:o.start||0,_lastAt:Date.now(),_rate:1,_dur:0,_fb:o.dur||0,_ok:false,_dead:false,p:null});
+    ytLoad().then(()=>{if(this._dead)return;this.p=new YT.Player(host,{host:YT_HOST,videoId:id,width:'100%',height:'100%',
+      playerVars:{controls:1,disablekb:1,rel:0,playsinline:1,fs:1,iv_load_policy:3,hl:'tr',start:Math.floor(o.start||0),origin:location.origin},
+      events:{onReady:()=>{this._ok=true;this._tm=setInterval(()=>this._tick(),500);this.dispatchEvent(new Event('loadedmetadata'));},
+        onStateChange:e=>this._state(e.data),
+        onPlaybackRateChange:()=>this.dispatchEvent(new Event('ratechange')),
+        onError:e=>this._fail(e.data===101||e.data===150?'Bu video, sahibi tarafından başka sitelerde oynatmaya kapatılmış. İSG departmanına bildirin.':e.data===100||e.data===105?'Video bulunamadı ya da yayından kaldırılmış. İSG departmanına bildirin.':'')}});})
+      .catch(()=>this._fail('YouTube oynatıcısı yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin; sorun sürerse İSG departmanına bildirin.'));}
+  _fail(msg){this.error={msg};this.dispatchEvent(new Event('error'));}
+  _state(s){if(s===1){this.paused=false;this.ended=false;this._last=this.currentTime;this._lastAt=Date.now();this.dispatchEvent(new Event('play'));}
+    else if(s===2){this.paused=true;this.dispatchEvent(new Event('pause'));}
+    else if(s===0){this._t=this.p.getCurrentTime()||this._t;this.dispatchEvent(new Event('timeupdate'));this.paused=true;this.ended=true;this.dispatchEvent(new Event('ended'));}}
+  _tick(){if(!this._ok||this._dead)return;const t=this.p.getCurrentTime()||0,now=Date.now();
+    const exp=this._last+(this.paused?0:(now-this._lastAt)/1000*this._rate);
+    this._t=t;this._last=t;this._lastAt=now;
+    if(t>exp+1.5){this.seeking=true;this.dispatchEvent(new Event('seeking'));this.seeking=false;}   // ileri atlama
+    this.dispatchEvent(new Event('timeupdate'));}
+  get currentTime(){return this._t;}
+  set currentTime(v){if(!this._ok||Math.abs(v-this._t)<1)return;this._t=this._last=v;this._lastAt=Date.now();this.p.seekTo(v,true);}
+  get duration(){const d=this._ok&&this.p.getDuration?this.p.getDuration():0;return d||this._fb||NaN;}
+  get playbackRate(){return this._rate;}
+  set playbackRate(r){this._rate=r;if(this._ok&&this.p.setPlaybackRate)this.p.setPlaybackRate(r);}
+  pause(){try{if(this._ok)this.p.pauseVideo();}catch(e){}}
+  destroy(){this._dead=true;clearInterval(this._tm);try{if(this.p&&this.p.destroy)this.p.destroy();}catch(e){}}
+}
+// Eğitim formunda süreyi okumak için ekran dışı, sessiz bir oynatıcı
+function ytDur(id){return new Promise(res=>{let p=null,iv=0,done=false;const h=document.createElement('div');h.style.cssText='position:fixed;left:-9999px;top:0;width:200px;height:113px';document.body.appendChild(h);
+  const fin=d=>{if(done)return;done=true;clearTimeout(tm);clearInterval(iv);try{if(p&&p.destroy)p.destroy();}catch(e){}h.remove();res(d);};const tm=setTimeout(()=>fin(0),15000);
+  ytLoad().then(()=>{p=new YT.Player(h,{host:YT_HOST,videoId:id,playerVars:{controls:0,playsinline:1,origin:location.origin},events:{
+    onReady:()=>{iv=setInterval(()=>{const d=p.getDuration&&p.getDuration();if(d)fin(Math.round(d));},300);},onError:()=>fin(0)}});}).catch(()=>fin(0));});}
+
 VIEWS.video=()=>{
   if(S.ui.vEg)return vPlayerView();
   const canRep=isRole('isg','yonetici');const tab=canRep&&S.ui.tab.video==='rapor'?'rapor':'liste';
@@ -1107,7 +1150,7 @@ function vPlayerView(){const r=vResolve();const back=`<a class="btn" href="#/vid
   if(r.i<0)return `${ph(esc(r.c.ad),'',back)}<div class="empty">Bu eğitime henüz video eklenmedi.</div>`;
   const v=r.vs[r.i],last=r.i===r.vs.length-1;
   return `${ph(esc(r.c.ad),`${r.i+1} / ${r.vs.length}. video`,back)}
-  <div class="cols"><section class="panel c8"><div class="vbox"><video id="vplayer" controls playsinline preload="metadata" controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture disableremoteplayback src="${esc(v.url)}"></video></div>
+  <div class="cols"><section class="panel c8"><div class="vbox">${ytId(v.url)?`<div id="vplayer" class="ytph" data-yt="${esc(ytId(v.url))}"></div>`:`<video id="vplayer" controls playsinline preload="metadata" controlslist="nodownload noplaybackrate noremoteplayback" disablepictureinpicture disableremoteplayback src="${esc(v.url)}"></video>`}</div>
    <div class="pb" style="padding-top:14px"><h2 style="margin:0 0 4px;font-size:17px">${esc(v.baslik)}</h2>${v.aciklama?`<p style="margin:0 0 10px;color:var(--muted);white-space:pre-wrap">${esc(v.aciklama)}</p>`:''}
    <div class="vtime" id="vTime"></div><div id="vStatus" class="note info" role="status"></div>
    <div class="vnav"><button class="btn" data-a="vprev" ${r.i?'':'disabled'}>Önceki video</button><span class="grow"></span><button class="btn pri" id="vNext" data-a="vnext" disabled>${last?'Eğitimi bitir':'İleri'}</button></div></div></section>
@@ -1115,10 +1158,11 @@ function vPlayerView(){const r=vResolve();const back=`<a class="btn" href="#/vid
 function vListHtml(r){return r.vs.map((v,j)=>{const d=r.done(v),u=r.unlocked(j),cur=j===r.i;
   const inner=`<span class="vnum ${d?'ok':''}" aria-hidden="true">${d?'✓':j+1}</span><span class="m"><b>${esc(v.baslik)}</b><small>${v.sure?fmtSure(v.sure)+', ':''}${d?'Tamamlandı':cur?'İzleniyor':u?'Sıradaki':'Kilitli: önceki videoyu tamamlayın'}</small></span>`;
   return `<li${cur?' class="cur" aria-current="true"':''}>${u&&!cur?`<a href="${vHref(r.c.id,v.id)}">${inner}</a>`:`<div class="${u?'':'lock'}">${inner}</div>`}</li>`;}).join('');}
-function mountVideo(){const r=vResolve();const el=$('#vplayer');if(!r||r.i<0||!el)return;const v=r.vs[r.i];
+function mountVideo(){const r=vResolve();let el=$('#vplayer');if(!r||r.i<0||!el)return;const v=r.vs[r.i];
   if(S.ui.vVid!==v.id){S.ui.vVid=v.id;history.replaceState(null,'',vHref(r.c.id,v.id));}
   S.ui.vKey=`video/${S.ui.vEg}/${S.ui.vVid}`;
   const a=r.p?.aktif?.v===v.id?r.p.aktif:null,done=r.done(v);
+  if(el.dataset.yt)el=new YtEl(el,el.dataset.yt,{start:a&&!done?Math.min(a.t||0,a.ileri||0):0,dur:v.sure});
   const st={c:r.c,v,i:r.i,el,done,max:a?.ileri||0,start:a&&!done?a.t||0:0,lastSave:0,warnAt:0,started:false,busy:false};S.vp=st;
   el.addEventListener('loadedmetadata',()=>{if(st.start>1&&st.start<el.duration-1)el.currentTime=Math.min(st.start,st.max);vUi();});
   el.addEventListener('timeupdate',()=>{if(!el.seeking&&el.currentTime<=st.max+2)st.max=Math.max(st.max,el.currentTime);
@@ -1129,7 +1173,7 @@ function mountVideo(){const r=vResolve();const el=$('#vplayer');if(!r||r.i<0||!e
   el.addEventListener('play',()=>{if(!st.started){st.started=true;if(!st.done)vSave();}});
   el.addEventListener('pause',()=>{if(!st.done&&!el.ended)vSave();});
   el.addEventListener('ended',()=>{if(!st.done)vComplete();});
-  el.addEventListener('error',()=>{const s=$('#vStatus');if(s){s.className='note danger';s.textContent='Video yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin; sorun sürerse İSG departmanına bildirin.';}});
+  el.addEventListener('error',()=>{const s=$('#vStatus');if(s){s.className='note danger';s.textContent=el.error&&el.error.msg||'Video yüklenemedi. Bağlantınızı kontrol edip sayfayı yenileyin; sorun sürerse İSG departmanına bildirin.';}});
   vUi();}
 function vUi(){const st=S.vp;if(!st)return;const el=st.el,s=$('#vStatus'),n=$('#vNext'),t=$('#vTime');if(!s||!n)return;
   n.disabled=!st.done;const d=isFinite(el.duration)&&el.duration?el.duration:st.v.sure||0;
@@ -1151,14 +1195,14 @@ function vSave(){const st=S.vp;if(!st||st.done)return;st.lastSave=Date.now();vPo
 async function vComplete(){const st=S.vp;if(!st||st.busy)return;st.busy=true;
   try{await vPost(st,true);st.done=true;toast('Video tamamlandı.');}catch(e){toast(errMsg(e),'err');}
   st.busy=false;if(S.vp!==st)return;const r=vResolve(),l=$('#vList');if(r&&l)l.innerHTML=vListHtml(r);vUi();if(st.done)$('#vNext')?.focus();}
-function vStop(){const st=S.vp;if(!st)return;S.vp=null;try{st.el.pause();}catch(e){}if(st.started&&!st.done)vPost(st).catch(()=>{});}
+function vStop(){const st=S.vp;if(!st)return;S.vp=null;try{st.el.pause();}catch(e){}if(st.started&&!st.done)vPost(st).catch(()=>{});if(st.el.destroy)st.el.destroy();}
 // Sekme kapanırken son konumu kaydet
 window.addEventListener('pagehide',()=>{const st=S.vp;if(!st||!st.started||st.done)return;
   if(S.api){try{fetch('/api/video',{method:'POST',keepalive:true,credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(vBody(st))});}catch(e){}}else vPost(st).catch(()=>{});});
 document.addEventListener('visibilitychange',()=>{if(document.hidden)vSave();});
 
 /* Eğitim tanımı (yalnızca İSG): ad, açıklama ve sıralı video listesi */
-function vProbe(url){return new Promise(res=>{const v=document.createElement('video');v.preload='metadata';v.muted=true;let ok=false;
+function vProbe(url){if(ytId(url))return ytDur(ytId(url));return new Promise(res=>{const v=document.createElement('video');v.preload='metadata';v.muted=true;let ok=false;
   const fin=x=>{if(ok)return;ok=true;clearTimeout(tm);v.removeAttribute('src');try{v.load();}catch(e){}res(x);};
   const tm=setTimeout(()=>fin(0),15000);v.onloadedmetadata=()=>fin(isFinite(v.duration)?Math.round(v.duration):0);v.onerror=()=>fin(0);v.src=url;});}
 function openVideoForm(rec){
@@ -1167,7 +1211,7 @@ function openVideoForm(rec){
   host.innerHTML=`<div class="modal-bg"></div><div class="modal" role="dialog" aria-modal="true" aria-labelledby="mTitle"><form novalidate><div class="dh"><h2 id="mTitle" style="flex:1">${rec?'Video eğitimi düzenle':'Video eğitim ekle'}</h2><button type="button" class="sbtn" style="color:var(--text)" data-a="closeModal" aria-label="Kapat">${ic('x')}</button></div>
   <div class="db"><div class="fgrid">${fieldHtml({k:'ad',t:'Eğitim adı',req:true,wide:true},rec?.ad)}${fieldHtml({k:'aciklama',t:'Açıklama',type:'textarea',rows:2,wide:true},rec?.aciklama)}${fieldHtml({k:'sira',t:'Listeleme sırası',type:'number',min:0,help:'Küçük sayı listede önce gösterilir.'},rec?.sira??'')}</div>
   <div class="sec">Videolar (izlenme sırasıyla)</div>
-  <div class="note info">Her video için doğrudan video dosyasına giden, herkesin açabildiği bir https bağlantısı girin (ör. https://…/video.mp4). YouTube sayfa bağlantıları bu oynatıcıda çalışmaz. Süre, bağlantı girildiğinde otomatik okunur; okunamazsa elle girin.</div>
+  <div class="note info">Her video için bir YouTube bağlantısı (youtube.com/watch?v=…, youtu.be/…) ya da doğrudan video dosyasına giden, herkesin açabildiği bir https bağlantısı (ör. https://…/video.mp4) girin. YouTube videosu "Liste dışı" veya "Herkese açık" olmalı ve gömülmeye izin vermelidir; oynatma listesi bağlantıları desteklenmez. Süre, bağlantı girildiğinde otomatik okunur; okunamazsa elle girin.</div>
   <ol class="vedit" id="vEdit"></ol><button type="button" class="btn" data-v="add">${ic('plus')}Video ekle</button>
   <div id="mErr" class="hint" style="color:var(--danger);margin-top:10px" role="alert"></div></div>
   <div class="df"><button class="btn pri" type="submit">Kaydet</button><button class="btn" type="button" data-a="closeModal">Vazgeç</button>${rec?`<span class="grow" style="flex:1"></span><button class="btn danger" type="button" data-v="del">${ic('trash')}Eğitimi sil</button>`:''}</div></form></div>`;
@@ -1176,7 +1220,7 @@ function openVideoForm(rec){
   const draw=()=>{list.innerHTML=vids.map((v,i)=>`<li><div class="vhead"><span class="vnum">${i+1}</span><b style="flex:1">${i+1}. video</b>
     <button type="button" class="btn sm" data-v="up" data-i="${i}" ${i?'':'disabled'} aria-label="${i+1}. videoyu yukarı taşı">↑</button><button type="button" class="btn sm" data-v="down" data-i="${i}" ${i<vids.length-1?'':'disabled'} aria-label="${i+1}. videoyu aşağı taşı">↓</button><button type="button" class="btn sm" data-v="rm" data-i="${i}">${ic('trash')}Kaldır</button></div>
     <div class="fgrid"><div class="fld wide"><label for="vb-${i}">Başlık <span class="req" aria-hidden="true">*</span></label><input id="vb-${i}" data-k="baslik" value="${esc(v.baslik)}"></div>
-    <div class="fld wide"><label for="vu-${i}">Video bağlantısı (https) <span class="req" aria-hidden="true">*</span></label><input id="vu-${i}" type="url" data-k="url" value="${esc(v.url)}" placeholder="https://…/video.mp4"></div>
+    <div class="fld wide"><label for="vu-${i}">Video bağlantısı (https) <span class="req" aria-hidden="true">*</span></label><input id="vu-${i}" type="url" data-k="url" value="${esc(v.url)}" placeholder="https://www.youtube.com/watch?v=… veya https://…/video.mp4"></div>
     <div class="fld"><label for="vs-${i}">Süre (dk:sn)</label><input id="vs-${i}" data-k="sureTxt" value="${esc(v.sureTxt)}" placeholder="otomatik"><small class="hint" id="vh-${i}"></small></div>
     <div class="fld"><label for="va-${i}">Kısa açıklama</label><input id="va-${i}" data-k="aciklama" value="${esc(v.aciklama||'')}"></div></div></li>`).join('');};
   const probe=async i=>{const v=vids[i],h=host.querySelector('#vh-'+i);if(!/^https:\/\//i.test(v.url))return 0;if(h)h.textContent='Süre okunuyor…';
@@ -1196,6 +1240,7 @@ function openVideoForm(rec){
     const ad=form.elements.ad.value.trim();if(!ad){err.textContent='Eğitim adını girin.';form.elements.ad.focus();return;}
     const list2=vids.filter(v=>v.baslik||v.url);
     const bad=list2.findIndex(v=>!v.baslik||!/^https:\/\/\S+$/i.test(v.url));if(bad>=0){err.textContent=`${vids.indexOf(list2[bad])+1}. video: başlık ve https:// ile başlayan bağlantı gerekli.`;return;}
+    const badYt=list2.findIndex(v=>isYtHost(v.url)&&!ytId(v.url));if(badYt>=0){err.textContent=`${vids.indexOf(list2[badYt])+1}. video: YouTube bağlantısından video kimliği okunamadı. Tek bir videonun adresini girin (oynatma listesi değil).`;return;}
     const btn=form.querySelector('[type=submit]');btn.disabled=true;btn.textContent='Kaydediliyor…';
     try{for(const v of list2){if(!parseSure(v.sureTxt)){const d=await probe(vids.indexOf(v));if(!d){const x=new Error('sure');x.userMsg=`"${v.baslik}" videosunun süresi okunamadı. Bağlantıyı kontrol edin ya da süreyi dk:sn olarak elle girin.`;throw x;}}}
       const videolar=list2.map(v=>({id:v.id,baslik:v.baslik,url:v.url,sure:parseSure(v.sureTxt),aciklama:v.aciklama||''}));
