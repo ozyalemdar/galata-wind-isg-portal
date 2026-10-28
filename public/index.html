@@ -366,17 +366,17 @@ body{font-size:15px}
 .logo .lt{font-weight:800;font-size:21px;line-height:1;color:var(--head);letter-spacing:.2px}
 .logo .lt small{display:block;font-size:11px;font-weight:700;letter-spacing:2px;color:var(--orange);margin-top:4px}
 .topbar .gsearch{max-width:420px}
-.topbar .gsearch input{background:var(--surface2);color:var(--text);height:38px;border:1px solid transparent;border-radius:8px}
+.topbar .gsearch input{background:var(--surface2);color:var(--text);height:38px;border:1px solid transparent;border-radius:8px;padding:0 12px 0 40px}
 .topbar .gsearch input::placeholder{color:var(--muted)}
 .topbar .gsearch input:focus{background:var(--surface);border-color:var(--brand-2);color:var(--text)}
-.topbar .gsearch .ic{color:var(--muted);top:10px;opacity:1}
+.topbar .gsearch .ic{color:var(--muted);top:10px;left:12px;opacity:1;pointer-events:none}
 .topbar .gres{top:44px}
 .topbar .sbtn,.tbtn{height:42px;min-width:42px;border:0;background:none;color:var(--text);border-radius:50%;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;position:relative;padding:0}
 .topbar .sbtn:hover,.tbtn:hover{background:var(--hover)}
 .tbtn .ic{width:24px;height:24px}
 .topbar .avatar{width:44px;height:44px;font-size:14px;position:relative;background:linear-gradient(135deg,#C9D6FF,#E9C8F5);color:var(--head)}
 .presence{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;background:#2DBE4E;border:2px solid var(--surface)}
-.hnav{background:var(--surface);min-height:66px;display:flex;align-items:center;gap:6px;padding:0 clamp(12px,4.5vw,96px);box-shadow:0 6px 16px rgba(16,24,40,.06);position:sticky;top:0;z-index:30;flex-wrap:wrap}
+.hnav{background:var(--surface);min-height:66px;display:flex;align-items:center;gap:6px;padding:0 clamp(12px,4.5vw,96px);box-shadow:0 6px 16px rgba(16,24,40,.06);position:sticky;top:0;z-index:30;flex-wrap:nowrap}
 .hnav a,.hnav .dd>button{display:flex;align-items:center;gap:10px;padding:10px 14px;font-size:16px;color:var(--text);text-decoration:none;border-radius:8px;background:none;border:0;cursor:pointer;position:relative;white-space:nowrap}
 .hnav .ic{width:22px;height:22px}
 .hnav .ic.chev{width:18px;height:18px;margin-left:-2px}
@@ -441,6 +441,7 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 .cardgrid{gap:28px}
 .card{border-radius:14px;border-color:var(--line-soft)}
 .pop{top:72px}
+@media (min-width:1181px) and (max-width:1400px){.hnav{gap:2px;padding:0 clamp(12px,2vw,28px)}.hnav a,.hnav .dd>button{padding:10px 9px;font-size:15px;gap:7px}.hnav .ic{width:20px;height:20px}.hnav>a[aria-current="page"]::after,.hnav .dd>button.act::after{left:9px;right:9px}}
 @media (max-width:1180px){.hnav{display:none}#navBtn{display:inline-flex}.topbar{position:sticky;top:0;z-index:30;height:64px}}
 @media (max-width:640px){.logo .lt{font-size:17px}.logo img{height:40px}.topbar .gsearch{display:none}.kbgrid{grid-template-columns:minmax(0,1fr);gap:18px}.fbar{padding:14px}.fl{flex-basis:100%}.btn.out{width:100%;justify-content:center}}
 .vbox{background:#000;border-radius:var(--r-m) var(--r-m) 0 0;overflow:hidden}
@@ -731,12 +732,13 @@ function shellView(){
   <nav class="hnav" id="hnav" aria-label="Ana menü"></nav>
   <div class="layout"><nav class="nav" id="nav" aria-label="Menü"></nav><div class="scrim" data-a="nav"></div><main id="main" tabindex="-1"></main></div></div>`;
 }
-const HNAV=[{k:'ana'},{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','video','kkd','acil']},{k:'formlar'},{k:'dokuman'},{k:'iso'},{k:'duyuru'},{k:'rapor'},{k:'yonetim'}];
+const HNAV=[{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','video','kkd','acil']},{k:'formlar'},{g:'Doküman Merkezi',i:'book',items:['dokuman','iso']},{k:'duyuru'},{g:'Yönetim Paneli',i:'gear',items:['yonetim','rapor']}];
 function hnavView(){
   const M=k=>MENU.find(m=>m.k===k);
   return HNAV.map((x,idx)=>{
     if(x.k){const m=M(x.k);if(!m.r.includes(S.user.rol))return '';return `<a href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`;}
     const items=x.items.map(M).filter(m=>m.r.includes(S.user.rol));if(!items.length)return '';
+    if(items.length===1){const m=items[0];return `<a href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`;}
     const open=S.ui.dd===idx;const act=items.some(m=>m.k===S.route);
     return `<div class="dd"><button data-a="dd" data-i="${idx}" aria-expanded="${open}" aria-haspopup="true" ${act?'class="act"':''}>${ic(x.i)}<span>${x.g}</span>${ic('chev','chev')}</button>${open?`<div class="ddm" role="menu">${items.map(m=>`<a role="menuitem" href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`).join('')}</div>`:''}</div>`;
   }).join('');
