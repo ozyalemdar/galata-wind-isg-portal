@@ -293,7 +293,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--brand-2)
 .tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:16px;overflow-x:auto}
 .tabs button{border:0;background:none;padding:10px 12px;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;color:var(--muted);font-weight:600}
 .tabs button[aria-selected="true"]{border-bottom-color:var(--orange);color:var(--text)}
-.mini{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
+.mini{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border-top:1px solid var(--line)}
 .mini div{background:var(--surface);padding:12px 16px}
 .mini b{display:block;font-size:22px;font-variant-numeric:tabular-nums}
 .mini small{color:var(--muted)}
@@ -469,7 +469,8 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
    Galata Wind İSG Portalı — prototip
    ============================================================ */
 const COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','iso45001','duyurular','acil','yukleniciler','kullanicilar','ayarlar','videoegitim','videoilerleme','audit','eposta'];
-const ROLES={calisan:'Çalışan',yonetici:'Yönetici',isg:'İSG Departmanı'};
+const ROLES={calisan:'Çalışan',saha:'Saha Çalışanı',yonetici:'Yönetici',isg:'İSG Departmanı'};
+const isEmp=u=>!!u&&(u.rol==='calisan'||u.rol==='saha');   // sade çalışan görünümü ve yetkileri
 const DEMO_PASS='Demo123!';
 const FALLBACK_USERS=[
   {id:'u-calisan',username:'calisan',ad:'Emre Yıldız',rol:'calisan',ekip:'Saha Bakım',saha:'',eposta:'calisan@ornek.local'},
@@ -636,7 +637,7 @@ const mailsOf=rol=>users().filter(u=>u.rol===rol).map(u=>u.eposta);
 const managerMail=ekip=>users().filter(u=>u.rol==='yonetici'&&u.ekip===ekip).map(u=>u.eposta);
 
 function scope(coll){
-  const rows=S.data[coll];const u=S.user;if(!u||u.rol==='isg')return rows;const me=u.rol==='calisan';
+  const rows=S.data[coll];const u=S.user;if(!u||u.rol==='isg')return rows;const me=isEmp(u);
   switch(coll){
     case 'bildirimler':return rows.filter(r=>me?r.bildiren===u.username:(r.ekip===u.ekip||r.bildiren===u.username));
     case 'dof':return rows.filter(r=>r.sorumlu===u.username||(!me&&r.ekip===u.ekip));
@@ -645,12 +646,16 @@ function scope(coll){
     default:return rows;
   }
 }
+/* KKD zorunluluğu: saha çalışanı için zimmet oluşturulmamışsa "teslim edilmedi" sayılır; KPI paydasına eklenir. */
+function kkdEksik(){const u=S.user;if(!u)return [];const has=new Set(S.data.kkd.map(k=>k.u));
+  return users().filter(x=>x.rol==='saha'&&!has.has(x.username)&&(u.rol==='isg'||(u.rol==='yonetici'?!!u.ekip&&x.ekip===u.ekip:x.username===u.username)));}
+function kkdStat(){const rows=scope('kkd'),eksik=kkdEksik(),del=rows.filter(k=>k.durum==='Teslim Edildi').length;return {rows,eksik,del,total:rows.length+eksik.length};}
 const reporterName=r=>(r.anonim&&!isRole('isg')&&r.bildiren!==S.user.username)?'Gizli':nameOf(r.bildiren);
 function dofOverdue(d){return d.durum!=='Kapandı'&&d.termin&&d.termin<today();}
 function riskLevel(s){return s>=15?{t:'Yüksek',c:3}:s>=6?{t:'Orta',c:2}:{t:'Düşük',c:1};}
 
 /* ---------- menu & routing ---------- */
-const ALL=['calisan','yonetici','isg'];
+const ALL=['calisan','saha','yonetici','isg'];
 const MENU=[
  {k:'ana',t:'Anasayfa',i:'home',r:ALL},
  {k:'bildir',t:'Bildirim Oluştur',i:'plus',r:ALL},
@@ -755,7 +760,7 @@ function navView(){
 function tasks(){
   const u=S.user,out=[];
   if(u.rol==='isg'){S.data.bildirimler.filter(b=>b.durum==='Yeni').forEach(b=>out.push({t:`${TUR[b.tur]?.t}: ${b.baslik}`,s:`${b.no}, ${b.saha||''}`,a:'open',kind:'bildirim',id:b.id}));}
-  scope('dof').filter(d=>d.durum!=='Kapandı'&&(d.sorumlu===u.username||u.rol!=='calisan')).filter(d=>dofOverdue(d)||d.sorumlu===u.username).forEach(d=>out.push({t:`DÖF: ${d.baslik}`,s:dofOverdue(d)?`Termin geçti (${fmtD(d.termin)})`:`Termin ${fmtD(d.termin)}`,a:'open',kind:'dof',id:d.id}));
+  scope('dof').filter(d=>d.durum!=='Kapandı'&&(d.sorumlu===u.username||!isEmp(u))).filter(d=>dofOverdue(d)||d.sorumlu===u.username).forEach(d=>out.push({t:`DÖF: ${d.baslik}`,s:dofOverdue(d)?`Termin geçti (${fmtD(d.termin)})`:`Termin ${fmtD(d.termin)}`,a:'open',kind:'dof',id:d.id}));
   S.data.kkd.filter(k=>k.u===u.username&&k.durum==='Teslim Bekliyor').forEach(k=>out.push({t:`KKD teslim onayı: ${k.ekipman}`,s:'Teslim aldıysanız onaylayın',a:'open',kind:'kkd',id:k.id}));
   S.data.egitimler.forEach(e=>(e.katilimcilar||[]).forEach(p=>{if(p.u===u.username&&p.d!=='Tamamlandı')out.push({t:`Eğitim: ${e.ad}`,s:`${fmtD(e.tarih)}, katılım bekleniyor`,a:'open',kind:'egitim',id:e.id});}));
   return out;
@@ -789,6 +794,7 @@ const C={ramak:'#9AE31C',tehlike:'#0D3DEB',kaza:'#FF5214',acc:'#9AE31C',mut:'#6E
 /* ---------- KPI ---------- */
 function kpiData(){
   const m=ym(today());const bil=scope('bildirimler');const dof=scope('dof');const egit=scope('egitimler');const kkd=scope('kkd');
+  const ks=kkdStat();
   const part=egit.flatMap(e=>(e.katilimcilar||[]).filter(p=>S.user.rol!=='yonetici'||ekipOf(p.u)===S.user.ekip));
   const risk=S.data.risk;const yukOpen=S.data.yukleniciler.reduce((a,y)=>a+(y.uygunsuzluklar||[]).filter(x=>x.durum!=='Kapandı').length,0);
   const openD=dof.filter(d=>d.durum!=='Kapandı');const over=openD.filter(dofOverdue).length;
@@ -803,7 +809,7 @@ function kpiData(){
     {t:'Eğitim tamamlama',v:'%'+pct(part.filter(p=>p.d==='Tamamlandı').length,part.length),s:`${part.filter(p=>p.d==='Tamamlandı').length} / ${part.length} katılım`,bar:pct(part.filter(p=>p.d==='Tamamlandı').length,part.length),go:'egitim'},
     {t:'Risk değerlendirme tamamlanma',v:'%'+pct(risk.filter(r=>r.durum==='Tamamlandı').length,risk.length),s:`${risk.filter(r=>r.durum==='Tamamlandı').length} / ${risk.length} kayıt`,bar:pct(risk.filter(r=>r.durum==='Tamamlandı').length,risk.length),go:'risk'},
     {t:'Yüklenici uygunsuzluk',v:yukOpen,s:'Açık uygunsuzluk',bad:yukOpen>0,go:'yuklenici'},
-    {t:'KKD teslim oranı',v:'%'+pct(kkd.filter(k=>k.durum==='Teslim Edildi').length,kkd.length),s:`${kkd.filter(k=>k.durum==='Teslim Edildi').length} / ${kkd.length} zimmet`,bar:pct(kkd.filter(k=>k.durum==='Teslim Edildi').length,kkd.length),go:'kkd'}
+    {t:'KKD teslim oranı',v:'%'+pct(ks.del,ks.total),s:`${ks.del} / ${ks.total} zimmet${ks.eksik.length?`, ${ks.eksik.length} saha çalışanının zimmeti yok`:''}`,bar:pct(ks.del,ks.total),bad:ks.eksik.length>0,go:'kkd'}
   ];
 }
 function kpiStrip(list){return `<div class="kpis">${list.map(k=>`<button class="kpi ${k.bad?'bad':''}" ${k.go&&allowed(k.go)?`data-a="go" data-k="${k.go}"`:''}><div class="t">${k.t}</div><div class="v">${k.v}</div><div class="s">${k.s}</div>${k.bar!=null?`<div class="bar"><i style="width:${k.bar}%"></i></div>`:''}</button>`).join('')}</div>`;}
@@ -821,7 +827,7 @@ function heroView(){
    <div class="qa"><button class="main" data-a="newbil" data-t="ramak">${ic('alert')}Ramak kala bildir</button><button data-a="newbil" data-t="tehlike">${ic('siren')}Tehlike bildir</button><button class="kaza" data-a="newbil" data-t="kaza">${ic('cross')}Kaza bildir</button></div></section>`;
 }
 VIEWS.ana=()=>{
-  if(S.user.rol==='calisan')return anaCalisan();
+  if(isEmp(S.user))return anaCalisan();
   const months=lastMonths(6);const bil=scope('bildirimler');
   const series=[{n:'Ramak kala',c:C.ramak,v:months.map(m=>bil.filter(b=>b.tur==='ramak'&&ym(b.tarih)===m.k).length)},{n:'Tehlike',c:C.tehlike,v:months.map(m=>bil.filter(b=>b.tur==='tehlike'&&ym(b.tarih)===m.k).length)},{n:'Kaza',c:C.kaza,v:months.map(m=>bil.filter(b=>b.tur==='kaza'&&ym(b.tarih)===m.k).length)}];
   const dof=scope('dof');const st=DOF_DURUM.map((d,i)=>({d,n:dof.filter(x=>x.durum===d).length,c:['#FF5214','#0D3DEB','#1F3D7C','#9AE31C'][i]}));
@@ -842,7 +848,7 @@ function anaCalisan(){
   const kkd=scope('kkd');
   return `${ph('Ana sayfa','Bildirimleriniz, eğitimleriniz ve KKD zimmetleriniz')}${heroView()}
   <div class="cols"><section class="panel c6"><h3>Bekleyen işlerim</h3>${t.length?`<ul class="list">${t.map(x=>`<li><button data-a="${x.a}" data-kind="${x.kind}" data-id="${x.id}"><div class="m"><b>${esc(x.t)}</b><small>${esc(x.s)}</small></div></button></li>`).join('')}</ul>`:'<div class="empty">Bekleyen işiniz yok.</div>'}</section>
-  <section class="panel c6"><h3>Özetim</h3><div class="mini"><div><b>${scope('bildirimler').length}</b><small>Toplam bildirimim</small></div><div><b>${done} / ${egit.length}</b><small>Tamamlanan eğitim</small></div><div><b>${kkd.filter(k=>k.durum==='Teslim Edildi').length} / ${kkd.length}</b><small>Teslim alınan KKD</small></div></div></section></div>
+  <section class="panel c6"><h3>Özetim</h3><div class="mini"><div><b>${scope('bildirimler').length}</b><small>Toplam bildirimim</small></div><div><b>${done} / ${egit.length}</b><small>Tamamlanan eğitim</small></div><div><b>${kkdStat().del} / ${kkdStat().total}</b><small>Teslim alınan KKD</small></div></div></section></div>
   <div class="cols"><section class="panel c7"><div class="panel-h">Son bildirimlerim<span class="grow"></span><a class="btn sm ghost" href="#/ramak">Tümü</a></div>${mine.length?bildirimTable(mine,true):'<div class="empty">Henüz bildiriminiz yok. Sahada gördüğünüz bir riski bildirmek bir dakikanızı alır.</div>'}</section>
   <section class="panel c5"><div class="panel-h">Duyurular<span class="grow"></span><a class="btn sm ghost" href="#/duyuru">Tümü</a></div>${annList(ann)}</section></div>`;
 }
@@ -874,7 +880,7 @@ function bilPage(page,turs,title,sub){
   ${fbar(page,{saha:true,durum:BIL_DURUM,extra:`<input type="month" id="f-${page}-ay" data-f="${page}.ay" value="${esc(f.ay||'')}" aria-label="Ay">${segs}`,right:`<span class="count">${rows.length} kayıt</span>`})}
   ${table([{t:'No',r:r=>`<span class="no">${esc(r.no)}</span>`},{t:'Tür',r:r=>turBadge(r.tur)},{t:'Başlık',r:r=>`<div class="ttl">${esc(r.baslik)}</div><div class="sm">${esc(r.saha||'')}${r.konum?', '+esc(r.konum):''}</div>`},{t:'Tarih',r:r=>fmtD(r.tarih)},{t:'Bildiren',r:r=>esc(reporterName(r))},{t:page==='kaza'?'Kaza türü':'Önem',r:r=>page==='kaza'?esc(r.kazaTuru||'—'):(r.siddet?badge(r.siddet):'—')},{t:'Durum',r:r=>badge(r.durum)}],rows,{open:'bildirim',empty:scope('bildirimler').length?'Filtrelere uyan kayıt bulunamadı.':'Henüz bildirim yok.'})}`;
 }
-VIEWS.ramak=()=>bilPage('ramak',['ramak','tehlike'],'Ramak kala ve tehlike bildirimleri',S.user.rol==='calisan'?'Oluşturduğunuz bildirimler':S.user.rol==='yonetici'?'Ekibinize ait bildirimler':'Tüm sahalardan gelen bildirimler');
+VIEWS.ramak=()=>bilPage('ramak',['ramak','tehlike'],'Ramak kala ve tehlike bildirimleri',isEmp(S.user)?'Oluşturduğunuz bildirimler':S.user.rol==='yonetici'?'Ekibinize ait bildirimler':'Tüm sahalardan gelen bildirimler');
 VIEWS.kaza=()=>bilPage('kaza',['kaza'],'İş kazaları',S.user.rol==='isg'?'Kaza kayıtları ve SGK bildirim süreleri':'Görebildiğiniz kaza kayıtları');
 
 VIEWS.dof=()=>{
@@ -907,7 +913,7 @@ VIEWS.risk=()=>{
 
 VIEWS.egitim=()=>{
   const page='egitim';const u=S.user;let rows=applyF(scope('egitimler'),page,['ad','tur','egitmen']);rows=sortDesc(rows,'tarih');S.ui.cur={page,rows};
-  if(u.rol==='calisan'){
+  if(isEmp(u)){
     const my=rows.map(e=>({...e,myD:(e.katilimcilar||[]).find(p=>p.u===u.username)?.d||'Bekliyor'}));
     const hrs=my.filter(e=>e.myD==='Tamamlandı').reduce((a,e)=>a+(+e.sure||0),0);
     return `${ph('Eğitimlerim','Katıldığınız ve planlanan eğitimler',expBtns(page))}
@@ -925,10 +931,13 @@ VIEWS.kkd=()=>{
   const f=F(page);if(f.kisi)rows=rows.filter(r=>r.u===f.kisi);
   rows=sortDesc(rows,'teslimTarihi');S.ui.cur={page,rows};const all=scope('kkd');
   const soon=all.filter(k=>k.yenileme&&k.yenileme<=isoD(new Date(Date.now()+30*864e5))&&k.durum==='Teslim Edildi').length;
-  return `${ph(u.rol==='calisan'?'KKD zimmetlerim':'KKD zimmet takibi',u.rol==='calisan'?'Size zimmetlenen kişisel koruyucu donanımlar':'Kişisel koruyucu donanım teslim ve yenileme takibi',`${expBtns(page)}${isRole('isg')?`<button class="btn pri" data-a="newkkd">${ic('plus')}Zimmet ekle</button>`:''}`)}
-  <div class="panel" style="margin-bottom:16px"><div class="mini" style="border-top:0"><div><b>%${pct(all.filter(k=>k.durum==='Teslim Edildi').length,all.length)}</b><small>Teslim oranı</small></div><div><b>${all.filter(k=>k.durum==='Teslim Bekliyor').length}</b><small>Teslim onayı bekleyen</small></div><div><b>${soon}</b><small>30 gün içinde yenilenecek</small></div></div></div>
-  ${fbar(page,{durum:KKD_DURUM,extra:u.rol!=='calisan'?fsel(page,'kisi','Tüm çalışanlar',users().filter(x=>u.rol==='isg'||x.ekip===u.ekip).map(x=>({v:x.username,t:x.ad}))):'',right:`<span class="count">${rows.length} kayıt</span>`})}
-  ${table([{t:'Ekipman',r:r=>`<div class="ttl">${esc(r.ekipman)}</div><div class="sm">${r.beden?'Beden '+esc(r.beden):''}${r.seriNo?' Seri '+esc(r.seriNo):''}</div>`},...(u.rol!=='calisan'?[{t:'Çalışan',r:r=>`${esc(nameOf(r.u))}<div class="sm">${esc(ekipOf(r.u))}</div>`}]:[]),{t:'Teslim',r:r=>fmtD(r.teslimTarihi)},{t:'Yenileme',r:r=>fmtD(r.yenileme)},{t:'Durum',r:r=>badge(r.durum)}],rows,{open:'kkd',empty:all.length?'Filtrelere uyan zimmet yok.':'Kayıtlı KKD zimmeti yok.'})}`;
+  const ks=kkdStat();
+  const eksikNot=!ks.eksik.length?'':u.rol==='saha'?`<div class="note danger">KKD zimmetiniz henüz oluşturulmadı. Saha çalışanları için KKD teslimi zorunludur; zimmet için İSG departmanına başvurun.</div>`
+    :`<div class="note danger"><b>Zimmeti oluşturulmamış saha çalışanları (${ks.eksik.length})</b>: KKD teslimi zorunlu olduğundan teslim oranına "teslim edilmedi" olarak yansır.<div class="btns" style="margin-top:8px">${ks.eksik.map(x=>isRole('isg')?`<button class="btn sm" data-a="newkkd" data-u="${esc(x.username)}">${ic('plus')}${esc(x.ad)}</button>`:`<span class="badge b-danger">${esc(x.ad)}</span>`).join('')}</div></div>`;
+  return `${ph(isEmp(u)?'KKD zimmetlerim':'KKD zimmet takibi',isEmp(u)?'Size zimmetlenen kişisel koruyucu donanımlar':'Kişisel koruyucu donanım teslim ve yenileme takibi',`${expBtns(page)}${isRole('isg')?`<button class="btn pri" data-a="newkkd">${ic('plus')}Zimmet ekle</button>`:''}`)}
+  ${eksikNot}<div class="panel" style="margin-bottom:16px"><div class="mini" style="border-top:0"><div><b>%${pct(ks.del,ks.total)}</b><small>Teslim oranı</small></div><div><b>${all.filter(k=>k.durum==='Teslim Bekliyor').length}</b><small>Teslim onayı bekleyen</small></div><div><b>${soon}</b><small>30 gün içinde yenilenecek</small></div>${ks.eksik.length?`<div><b style="color:var(--danger)">${ks.eksik.length}</b><small>Zimmeti olmayan saha çalışanı</small></div>`:''}</div></div>
+  ${fbar(page,{durum:KKD_DURUM,extra:!isEmp(u)?fsel(page,'kisi','Tüm çalışanlar',users().filter(x=>u.rol==='isg'||x.ekip===u.ekip).map(x=>({v:x.username,t:x.ad}))):'',right:`<span class="count">${rows.length} kayıt</span>`})}
+  ${table([{t:'Ekipman',r:r=>`<div class="ttl">${esc(r.ekipman)}</div><div class="sm">${r.beden?'Beden '+esc(r.beden):''}${r.seriNo?' Seri '+esc(r.seriNo):''}</div>`},...(!isEmp(u)?[{t:'Çalışan',r:r=>`${esc(nameOf(r.u))}<div class="sm">${esc(ekipOf(r.u))}</div>`}]:[]),{t:'Teslim',r:r=>fmtD(r.teslimTarihi)},{t:'Yenileme',r:r=>fmtD(r.yenileme)},{t:'Durum',r:r=>badge(r.durum)}],rows,{open:'kkd',empty:all.length?'Filtrelere uyan zimmet yok.':'Kayıtlı KKD zimmeti yok.'})}`;
 };
 
 function flsel(page,key,label,icon,opts,allText){const v=F(page)[key]||'';return `<label class="fl"><span>${esc(label)}</span><select id="f-${page}-${key}" data-f="${page}.${key}">${allText!=null?`<option value="">${esc(allText)}</option>`:''}${opts.map(o=>{const x=typeof o==='object'?o:{v:o,t:o};return `<option value="${esc(x.v)}" ${String(v)===String(x.v)?'selected':''}>${esc(x.t)}</option>`}).join('')}</select></label>`;}
@@ -1468,8 +1477,8 @@ function openEgitimForm(rec){openForm({title:rec?'Eğitimi düzenle':'Eğitim pl
   onSubmit:async v=>{const prev=rec?.katilimcilar||[];v.katilimcilar=v.katilimci.map(u=>prev.find(p=>p.u===u)||{u,d:'Bekliyor'});delete v.katilimci;
     const eklenen=v.katilimcilar.filter(k=>!prev.find(p=>p.u===k.u)).map(k=>userBy(k.u)?.eposta);
     await saveRec('egitimler',rec?.id,v,v.ad);if(eklenen.length)mail(eklenen,`Eğitim daveti: ${v.ad}, ${fmtD(v.tarih)}`);toast(rec?'Eğitim güncellendi.':'Eğitim planlandı, katılımcılara davet kuyruğa alındı.');}});}
-function openKkdForm(rec){openForm({title:rec?'Zimmeti düzenle':'KKD zimmeti ekle',fields:[{k:'u',t:'Çalışan',type:'select',options:userOpts,req:true},{k:'ekipman',t:'Ekipman',type:'select',options:KKD_TURLERI,req:true},{k:'beden',t:'Beden / numara'},{k:'seriNo',t:'Seri / lot no'},{k:'teslimTarihi',t:'Teslim tarihi',type:'date',req:true},{k:'yenileme',t:'Yenileme tarihi',type:'date'},{k:'durum',t:'Durum',type:'select',options:KKD_DURUM,req:true},{k:'not',t:'Not',type:'textarea',wide:true,rows:2}],
-  values:rec||{teslimTarihi:today(),durum:'Teslim Bekliyor'},onSubmit:async v=>{await saveRec('kkd',rec?.id,v,`${v.ekipman}, ${nameOf(v.u)}`);if(!rec&&v.durum==='Teslim Bekliyor')mail([userBy(v.u)?.eposta],`KKD teslim onayınız bekleniyor: ${v.ekipman}`);toast('Zimmet kaydedildi.');}});}
+function openKkdForm(rec,pre){openForm({title:rec?'Zimmeti düzenle':'KKD zimmeti ekle',fields:[{k:'u',t:'Çalışan',type:'select',options:userOpts,req:true},{k:'ekipman',t:'Ekipman',type:'select',options:KKD_TURLERI,req:true},{k:'beden',t:'Beden / numara'},{k:'seriNo',t:'Seri / lot no'},{k:'teslimTarihi',t:'Teslim tarihi',type:'date',req:true},{k:'yenileme',t:'Yenileme tarihi',type:'date'},{k:'durum',t:'Durum',type:'select',options:KKD_DURUM,req:true},{k:'not',t:'Not',type:'textarea',wide:true,rows:2}],
+  values:rec||{teslimTarihi:today(),durum:'Teslim Bekliyor',...(pre?{u:pre}:{})},onSubmit:async v=>{await saveRec('kkd',rec?.id,v,`${v.ekipman}, ${nameOf(v.u)}`);if(!rec&&v.durum==='Teslim Bekliyor')mail([userBy(v.u)?.eposta],`KKD teslim onayınız bekleniyor: ${v.ekipman}`);toast('Zimmet kaydedildi.');}});}
 function openDokForm(rec){openForm({title:rec?'Dokümanı güncelle':'Doküman yükle',fields:[{k:'ad',t:'Doküman adı',req:true,wide:true},{k:'kod',t:'Doküman kodu',ph:'ör. İSG-PR-004'},{k:'surec',t:'İlgili süreç',type:'select',options:SUREC_LIST},{k:'kategori',t:'Kategori',type:'select',options:DOK_KAT,req:true},{k:'versiyon',t:'Revizyon no'},{k:'yayinTarihi',t:'Yayın tarihi',type:'date'},{k:'link',t:'Harici bağlantı (varsa)',type:'url',ph:'https://',wide:true,help:'Doldurulursa kart "Link" olarak görünür ve İncele bağlantıyı yeni sekmede açar.'},{k:'yol',t:'Ortak klasör yolu (varsa)',ph:'\\\\sunucu\\ISG\\Prosedürler\\İSG.P1 İSG Yönetim Prosedürü.docx',wide:true,help:'Herkesin erişebildiği ağ klasöründeki yol. Kartta "Yolu kopyala" düğmesi çıkar; kullanıcı yolu Dosya Gezgini adres çubuğuna yapıştırır.'},{k:'aciklama',t:'Açıklama',type:'textarea',wide:true,rows:2},{k:'dosya',t:'Dosya',type:'file',wide:true,replace:true,accept:'.pdf,.doc,.docx,.xls,.xlsx,image/*',help:'Prototipte en fazla 140 KB. Canlı kurulumda SharePoint kütüphanesine bağlanır.'}],
   values:rec||{yayinTarihi:today(),versiyon:'0'},onSubmit:async v=>{if(v.link&&!/^https?:\/\//i.test(v.link)){const e=new Error('url');e.userMsg='Bağlantı http:// ya da https:// ile başlamalı.';throw e;}checkYol(v);await saveRec('dokumanlar',rec?.id,v,v.ad);toast('Doküman kaydedildi.');}});}
 function nextRevNo(revs){const nums=(revs||[]).map(v=>parseFloat(v.no)).filter(n=>!isNaN(n));return nums.length?String(Math.max(...nums)+1):'1';}
@@ -1590,7 +1599,7 @@ const A={
   vprev:()=>{const st=S.vp;const pv=st&&(st.c.videolar||[])[st.i-1];if(pv)location.hash=vHref(st.c.id,pv.id);},
   vreset:el=>{const p=S.data.videoilerleme.find(x=>x.id===el.dataset.id);if(!p)return;const c=S.data.videoegitim.find(x=>x.id===p.egitim);const det=`${nameOf(p.u)}: ${c?.ad||p.egitim}`;
     openForm({title:'İlerlemeyi sıfırla',intro:`<p>${esc(det)} eğitiminin izleme ilerlemesi silinecek; çalışan eğitime baştan başlar. İşlem kayıt geçmişine yazılır.</p>`,fields:[],submit:'Sıfırla',onSubmit:async()=>{await removeDoc('videoilerleme',p.id,{islem:'İlerleme sıfırlandı',detay:det});audit('İlerleme sıfırlandı','videoilerleme',p.id,det);toast('İlerleme sıfırlandı.');}});},
-  newkkd:()=>openKkdForm(),editkkd:el=>openKkdForm(S.data.kkd.find(x=>x.id===el.dataset.id)),
+  newkkd:el=>openKkdForm(null,el&&el.dataset&&el.dataset.u),editkkd:el=>openKkdForm(S.data.kkd.find(x=>x.id===el.dataset.id)),
   kkdOnay:async el=>{const r=S.data.kkd.find(x=>x.id===el.dataset.id);try{await patchRec('kkd',r.id,{durum:'Teslim Edildi',onay:new Date().toISOString()},'Çalışan teslim onayı',`${r.ekipman}, ${nameOf(r.u)}`);toast('Teslim onayınız kaydedildi.');}catch(e){toast(errMsg(e),'err');}},
   newdok:()=>openDokForm(),editdok:el=>openDokForm(S.data.dokumanlar.find(x=>x.id===el.dataset.id)),
   newiso:()=>openIsoForm(),editiso:el=>openIsoForm(S.data.iso45001.find(x=>x.id===el.dataset.id)),isorev:el=>openIsoRevForm(S.data.iso45001.find(x=>x.id===el.dataset.id)),
@@ -1641,7 +1650,7 @@ document.addEventListener('submit',async e=>{
 });
 function globalSearch(q){const box=$('#gres');q=trLower(q).trim();if(q.length<2){box.innerHTML='';return;}
   const hits=[];scope('bildirimler').forEach(b=>{if(trLower(`${b.no} ${b.baslik} ${b.aciklama}`).includes(q))hits.push({k:'bildirim',id:b.id,t:`${b.no} ${b.baslik}`,s:TUR[b.tur]?.t});});
-  if(!isRole('calisan'))scope('dof').forEach(d=>{if(trLower(`${d.no} ${d.baslik}`).includes(q))hits.push({k:'dof',id:d.id,t:`${d.no} ${d.baslik}`,s:'DÖF'});});
+  if(!isRole('calisan','saha'))scope('dof').forEach(d=>{if(trLower(`${d.no} ${d.baslik}`).includes(q))hits.push({k:'dof',id:d.id,t:`${d.no} ${d.baslik}`,s:'DÖF'});});
   S.data.dokumanlar.forEach(d=>{if(trLower(`${d.kod} ${d.ad}`).includes(q))hits.push({k:'dokuman',id:d.id,t:d.ad,s:'Doküman'});});
   S.data.duyurular.forEach(d=>{if(trLower(d.baslik).includes(q))hits.push({k:'duyuru',id:d.id,t:d.baslik,s:'Duyuru'});});
   box.innerHTML=`<div class="gres">${hits.length?hits.slice(0,12).map(h=>`<button data-a="open" data-kind="${h.k}" data-id="${h.id}">${esc(h.t)}<small>${esc(h.s)}</small></button>`).join(''):'<div class="hint" style="padding:8px">Sonuç bulunamadı.</div>'}</div>`;}
