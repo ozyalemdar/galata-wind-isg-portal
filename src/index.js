@@ -16,7 +16,8 @@ const DOC_COLLS = new Set(['bildirimler', 'dof', 'risk', 'egitimler', 'kkd', 'do
 const LOG_KINDS = new Set(['audit', 'eposta']);
 // Tamamlanmış İSG form kayıtları: DOC_COLLS dışında; /api/data ile herkese dağıtılmaz, /api/form üzerinden okunur
 const FORM_COLL = 'formkayitlari';
-const ROLES = ['calisan', 'yonetici', 'isg'];
+// saha: sahada çalışan (Çalışan yetkileri + kendi sahasındaki kontrol formu kayıtlarını paylaşma)
+const ROLES = ['calisan', 'saha', 'yonetici', 'isg'];
 const TUR_PREFIX = { ramak: 'RK', tehlike: 'TH', kaza: 'KZ' };
 const NUMBERED = { dof: 'DOF', risk: 'RD' };           // bildirimler: türe göre
 const BIL_DURUM = ['Yeni', 'İnceleniyor', 'DÖF Açıldı', 'Kapatıldı'];
@@ -355,6 +356,7 @@ async function deleteDoc(env, u, coll, id, body) {
 /* ---------------- İSG form kayıtları ---------------- */
 // Görünürlük: İSG hepsini; diğerleri kendi kayıtlarını ve (ekibi tanımlıysa) ekip arkadaşlarının kayıtlarını görür.
 // Ekip paylaşımı, "listeyi son kayıttan al" akışı içindir (ekipman listesi başka bir teknik personelden devralınabilir).
+// Saha çalışanı ayrıca aynı sahadaki diğer saha çalışanlarının kayıtlarını görür (formlar saha için doldurulur).
 const FORM_ID_RE = /^[a-z0-9-]{3,60}$/;
 async function listForms(env, u, url) {
   const f = url.searchParams.get('f') || '';
@@ -363,9 +365,9 @@ async function listForms(env, u, url) {
   const scoped = u.rol !== 'isg';
   const { results } = await env.DB.prepare(
     `SELECT data FROM docs WHERE coll = ?1 AND deleted = 0 AND json_extract(data, '$.formId') = ?2
-     ${scoped ? "AND (json_extract(data, '$.olusturan') = ?4 OR (?5 <> '' AND json_extract(data, '$.ekip') = ?5))" : ''}
+     ${scoped ? "AND (json_extract(data, '$.olusturan') = ?4 OR (?5 <> '' AND json_extract(data, '$.ekip') = ?5) OR (?6 <> '' AND json_extract(data, '$.saha') = ?6))" : ''}
      ORDER BY updated_at DESC LIMIT ?3`
-  ).bind(...(scoped ? [FORM_COLL, f, limit, u.username, u.ekip || ''] : [FORM_COLL, f, limit])).all();
+  ).bind(...(scoped ? [FORM_COLL, f, limit, u.username, u.ekip || '', u.rol === 'saha' ? (u.saha || '') : ''] : [FORM_COLL, f, limit])).all();
   return json({ ok: true, kayitlar: results.map(r => parse(r.data)).filter(Boolean).map(r => r.data) });
 }
 
@@ -382,7 +384,7 @@ async function createForm(env, u, body) {
     const no = pre + String((m && m.n || 0) + 1 + attempt).padStart(4, '0');
     // Sunucu alanları istemciden gelene üstün gelir
     const rec = {
-      formId, no, olusturan: u.username, ekip: u.ekip || '', olusturma: nowIso,
+      formId, no, olusturan: u.username, ekip: u.ekip || '', saha: u.saha || '', olusturma: nowIso,
       data: { ...data, meta: { ...data.meta, formId, recordNo: no, completedAt: nowIso, by: u.ad || u.username } },
     };
     const payload = JSON.stringify(rec);
