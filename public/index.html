@@ -449,6 +449,27 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 .vtime{font-size:13px;color:var(--muted);margin:0 0 8px;font-variant-numeric:tabular-nums;min-height:18px}
 .vnav{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.vnav .grow{flex:1}
 .note.ok{background:var(--ok-soft);color:var(--ok)}
+/* Yüklenici personeli kartı ve kapı kontrolü */
+.qrbox{display:block;width:168px;height:168px;background:#fff;padding:6px;border:1px solid var(--line);border-radius:var(--r-m)}
+.qrbox svg{display:block;width:100%;height:100%}
+.cardqr{display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin:8px 0}
+.cardqr code{font-size:15px;font-weight:700;letter-spacing:.04em}
+.kapi{display:flex;flex-direction:column;gap:16px;max-width:760px}
+.kres{border-radius:var(--r-l);padding:28px 24px;min-height:220px;display:flex;flex-direction:column;justify-content:center;gap:8px;border:3px solid var(--line);background:var(--surface2);color:var(--text)}
+.kres h2{margin:0;font-size:34px;line-height:1.1}
+.kres .kad{font-size:22px;font-weight:700}
+.kres ul{margin:6px 0 0;padding-left:20px;font-size:17px}
+.kres svg.ic{width:44px;height:44px}
+.kres.uygun{background:var(--ok-soft);border-color:var(--ok);color:var(--ok)}
+.kres.eksik,.kres.bulunamadi{background:var(--danger-soft);border-color:var(--danger);color:var(--danger)}
+.kres.hata{background:var(--warn-soft);border-color:var(--warn);color:var(--warn)}
+.kact{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.kact .btn{height:48px;font-size:16px}
+.kform{display:flex;gap:8px;flex:1;min-width:260px}
+.kform input{flex:1;height:48px;font-size:18px;padding:0 12px;border:1px solid var(--line);border-radius:var(--r-s);background:var(--surface);color:var(--text);letter-spacing:.05em;text-transform:uppercase}
+#kapiCam video{width:100%;max-height:50vh;border-radius:var(--r-m);background:#000}
+#cardPrint{display:none}
+@media print{body.print-card>*:not(#cardPrint){display:none!important}body.print-card #cardPrint{display:block}.pcard{width:86mm;border:1px solid #000;padding:6mm;font-family:system-ui,sans-serif;color:#000}.pcard .qrbox{width:34mm;height:34mm;padding:1mm;border:0}.pc-b{display:flex;gap:5mm;align-items:center;margin:4mm 0}.pc-h{font-weight:700;font-size:11pt}.pc-f{font-size:8pt}.pcard code{font-size:11pt;font-weight:700}}
 .vlist li>a,.vlist li>div{display:flex;gap:12px;align-items:center;padding:10px 16px;color:inherit;text-decoration:none}
 .vlist li>a:hover{background:var(--hover)}
 .vlist li.cur{background:var(--surface2);box-shadow:inset 3px 0 0 var(--orange)}
@@ -468,8 +489,8 @@ input[type=url]{width:100%;min-height:34px;border:1px solid var(--line);border-r
 /* ============================================================
    Galata Wind İSG Portalı — prototip
    ============================================================ */
-const COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','iso45001','duyurular','acil','yukleniciler','kullanicilar','ayarlar','videoegitim','videoilerleme','audit','eposta'];
-const ROLES={calisan:'Çalışan',saha:'Saha Çalışanı',yonetici:'Yönetici',isg:'İSG Departmanı'};
+const COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','iso45001','duyurular','acil','yukleniciler','ypersonel','kullanicilar','ayarlar','videoegitim','videoilerleme','audit','eposta'];
+const ROLES={calisan:'Çalışan',saha:'Saha Çalışanı',yonetici:'Yönetici',isg:'İSG Departmanı',guvenlik:'Güvenlik'};
 const isEmp=u=>!!u&&(u.rol==='calisan'||u.rol==='saha');   // sade çalışan görünümü ve yetkileri
 const DEMO_PASS='Demo123!';
 const FALLBACK_USERS=[
@@ -531,6 +552,7 @@ bell:'M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0',file:'M6 2h
 users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8',
 pdf:'M6 2h9l5 5v15H6zM14 2v6h6M9 15h1.5a1.5 1.5 0 0 0 0-3H9v5M14 12v5h1a2 2 0 0 0 2-2v-1a2 2 0 0 0-2-2z',chev:'M6 9l6 6 6-6',sun:'M12 17a5 5 0 1 0 0-10 5 5 0 0 0 0 10zM12 1v2M12 21v2M4.2 4.2l1.4 1.4M18.4 18.4l1.4 1.4M1 12h2M21 12h2M4.2 19.8l1.4-1.4M18.4 5.6l1.4-1.4',eye:'M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z',cal:'M3 5h18v16H3zM16 3v4M8 3v4M3 10h18',ext:'M14 3h7v7M21 3l-9 9M19 14v6a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h6',funnel:'M3 4h18l-7 8v7l-4 2v-9z',sort:'M3 6h11M3 12h8M3 18h5M17 4v16M14 17l3 3 3-3',book:'M2 4h7a3 3 0 0 1 3 3v14a2 2 0 0 0-2-2H2zM22 4h-7a3 3 0 0 0-3 3v14a2 2 0 0 1 2-2h8z',docfile:'M6 2h9l5 5v15H6zM14 2v6h6M10 12h3a2 2 0 0 1 0 4h-3z',shield:'M12 3l8 4v5c0 5-3.5 9-8 10-4.5-1-8-5-8-10V7z M9 12l2 2 4-4',upload:'M12 21V9M7 14l5-5 5 5M4 21h16',
 play:'M7 4l13 8-13 8z',
+qr:'M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20h3M20 17v4',
 folder:'M3 6a1 1 0 0 1 1-1h5l2 2h9a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z',copy:'M9 9h11v11H9zM5 15H4V4h11v1'
 };
 const ic=(n,cls='')=>`<svg class="ic ${cls}" viewBox="0 0 24 24" aria-hidden="true"><path d="${I[n]}"/></svg>`;
@@ -568,7 +590,7 @@ function refreshUser(){if(!S.user)return;const u=users().find(x=>x.username===S.
 async function withRetry(fn){try{return await fn();}catch(e){if(e&&e.code==='unavailable'){await new Promise(r=>setTimeout(r,400+Math.random()*600));return fn();}throw e;}}
 function errMsg(e){if(e&&e.userMsg)return e.userMsg;const c=e&&e.code;if(c==='quota_exceeded')return 'Kayıt kapasitesi doldu. Eski kayıtları silip tekrar deneyin.';if(c==='invalid_argument')return 'Bu kaydı kaydetme yetkiniz yok ya da kayıt çok büyük (ekleri küçültün).';if(c==='resource_exhausted')return 'Çok hızlı işlem yapıldı, birkaç saniye sonra tekrar deneyin.';return 'Kayıt yapılamadı. Bağlantınızı kontrol edip tekrar deneyin.';}
 /* --- sunucu (Cloudflare) modu --- */
-const DATA_COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','duyurular','acil','yukleniciler','kullanicilar','ayarlar','videoegitim','videoilerleme'];
+const DATA_COLLS=['bildirimler','dof','risk','egitimler','kkd','dokumanlar','duyurular','acil','yukleniciler','ypersonel','kullanicilar','ayarlar','videoegitim','videoilerleme'];
 async function api(method,path,body){let r;
   try{r=await fetch(path,{method,credentials:'same-origin',headers:{'Content-Type':'application/json','Accept':'application/json'},body:body?JSON.stringify(body):undefined});}
   catch(x){const e=new Error('net');e.code='unavailable';e.userMsg='Sunucuya ulaşılamadı ya da oturumunuzun süresi doldu. Sayfayı yenileyin.';throw e;}
@@ -674,13 +696,16 @@ const MENU=[
  {k:'duyuru',t:'Duyurular',i:'mega',r:ALL},
  {k:'acil',t:'Acil Durum Ekipleri',i:'siren',r:ALL},
  {k:'yuklenici',t:'Yükleniciler',i:'building',r:['yonetici','isg']},
+ {k:'ypersonel',t:'Yüklenici Personeli',i:'users',r:['isg'],api:true},
+ {k:'kapi',t:'Kapı Kontrolü',i:'qr',r:['guvenlik','isg'],api:true},
  {g:'Analiz'},
  {k:'rapor',t:'Raporlar',i:'chart',r:['yonetici','isg']},
  {k:'yonetim',t:'Yönetim Paneli',i:'gear',r:['isg']}
 ];
-function allowed(k){const m=MENU.find(x=>x.k===k);return m&&m.r.includes(S.user.rol);}
+const canUse=m=>m.r.includes(S.user.rol)&&(!m.api||S.api);
+function allowed(k){const m=MENU.find(x=>x.k===k);return !!m&&canUse(m);}
 const LINK_KIND={dof:'dof',ramak:'bildirim',kaza:'bildirim'};
-function readRoute(){const [h,id,sub]=((location.hash||'').replace(/^#\/?/,'')||'ana').split('/');S.route=allowed(h)?h:'ana';
+function readRoute(){const [h,id,sub]=((location.hash||'').replace(/^#\/?/,'')||'ana').split('/');S.route=allowed(h)?h:(S.user.rol==='guvenlik'?'kapi':'ana');
   const dec=x=>{try{return decodeURIComponent(x||'')}catch(e){return ''}};S.ui.formId=S.route==='formlar'?dec(id):'';S.ui.formKod=S.route==='formlar'?dec(sub):'';S.ui.vEg=S.route==='video'?dec(id):'';S.ui.vVid=S.route==='video'?dec(sub):'';S.ui.link=id&&S.route===h&&LINK_KIND[h]?{kind:LINK_KIND[h],id:(()=>{try{return decodeURIComponent(id)}catch(e){return ''}})()}:null;}
 // E-postadaki kayıt bağlantısı: kaydı aç, adresi sayfa adresine indir
 function openLinked(){const l=S.ui.link;if(!l)return;S.ui.link=null;history.replaceState(null,'','#/'+S.route);if(S.data[KIND_COLL[l.kind]].some(x=>x.id===l.id))openDrawer(l.kind,l.id);else toast('Kayıt bulunamadı ya da görüntüleme yetkiniz yok.','err');}
@@ -701,7 +726,8 @@ function render(){
   const vk=S.route==='video'&&S.ui.vEg?`video/${S.ui.vEg}/${S.ui.vVid}`:'';
   if(fk&&S.ui.formsKey===fk&&$('#formHost')){ /* korunur */ }
   else if(vk&&S.ui.vKey===vk&&$('#vplayer')){ /* korunur */ }
-  else{S.ui.formsKey=null;S.ui.vKey=null;vStop();$('#main').innerHTML=(VIEWS[S.route]||VIEWS.ana)();if(S.route==='formlar')mountForms();if(vk)mountVideo();}
+  else if(S.route==='kapi'&&S.ui.kapiOn&&$('#kapiHost')){ /* korunur: kamera ve okuma sonucu */ }
+  else{S.ui.formsKey=null;S.ui.vKey=null;vStop();kapiStop();$('#main').innerHTML=(VIEWS[S.route]||VIEWS.ana)();if(S.route==='formlar')mountForms();if(vk)mountVideo();if(S.route==='kapi')mountKapi();}
   if(aid){const el=document.getElementById(aid);if(el){el.focus();try{if(sel!=null)el.setSelectionRange(sel,sel)}catch(e){}}}
   if(S.ui.drawer)renderOverlay();
 }
@@ -737,12 +763,12 @@ function shellView(){
   <nav class="hnav" id="hnav" aria-label="Ana menü"></nav>
   <div class="layout"><nav class="nav" id="nav" aria-label="Menü"></nav><div class="scrim" data-a="nav"></div><main id="main" tabindex="-1"></main></div></div>`;
 }
-const HNAV=[{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici']},{g:'Çalışan',i:'users',items:['egitim','video','kkd','acil']},{k:'formlar'},{g:'Doküman Merkezi',i:'book',items:['dokuman','iso']},{k:'duyuru'},{g:'Yönetim Paneli',i:'gear',items:['yonetim','rapor']}];
+const HNAV=[{g:'Bildirimler',i:'alert',items:['bildir','ramak','kaza']},{g:'Takip',i:'check',items:['dof','risk','yuklenici','ypersonel','kapi']},{g:'Çalışan',i:'users',items:['egitim','video','kkd','acil']},{k:'formlar'},{g:'Doküman Merkezi',i:'book',items:['dokuman','iso']},{k:'duyuru'},{g:'Yönetim Paneli',i:'gear',items:['yonetim','rapor']}];
 function hnavView(){
   const M=k=>MENU.find(m=>m.k===k);
   return HNAV.map((x,idx)=>{
-    if(x.k){const m=M(x.k);if(!m.r.includes(S.user.rol))return '';return `<a href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`;}
-    const items=x.items.map(M).filter(m=>m.r.includes(S.user.rol));if(!items.length)return '';
+    if(x.k){const m=M(x.k);if(!canUse(m))return '';return `<a href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`;}
+    const items=x.items.map(M).filter(canUse);if(!items.length)return '';
     if(items.length===1){const m=items[0];return `<a href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`;}
     const open=S.ui.dd===idx;const act=items.some(m=>m.k===S.route);
     return `<div class="dd"><button data-a="dd" data-i="${idx}" aria-expanded="${open}" aria-haspopup="true" ${act?'class="act"':''}>${ic(x.i)}<span>${x.g}</span>${ic('chev','chev')}</button>${open?`<div class="ddm" role="menu">${items.map(m=>`<a role="menuitem" href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`).join('')}</div>`:''}</div>`;
@@ -751,7 +777,7 @@ function hnavView(){
 function navView(){
   let h=`<div class="role"><b>${esc(S.user.ad)}</b>${ROLES[S.user.rol]}${S.user.ekip?', '+esc(S.user.ekip):''}</div>`;
   let pendingGroup=null;
-  MENU.forEach(m=>{if(m.g){pendingGroup=m.g;return;}if(!m.r.includes(S.user.rol))return;
+  MENU.forEach(m=>{if(m.g){pendingGroup=m.g;return;}if(!canUse(m))return;
     if(pendingGroup){h+=`<div class="grp">${pendingGroup}</div>`;pendingGroup=null;}
     h+=`<a href="#/${m.k}" ${S.route===m.k?'aria-current="page"':''}>${ic(m.i)}<span>${m.t}</span></a>`;});
   h+=`<div class="navmode">${S.mode==='bulut'?'Veriler ortak veritabanında saklanıyor.':S.mode==='yerel'?'Çevrimdışı mod: veriler yalnızca bu tarayıcıda.':'Veriler yükleniyor…'}</div>`;
@@ -1033,6 +1059,103 @@ VIEWS.yuklenici=()=>{
   ${fbar(page,{saha:true,durum:['Uygun','Eksik belge','Askıda'],right:`<span class="count">${rows.length} firma</span>`})}
   ${table([{t:'Firma',r:r=>`<div class="ttl">${esc(r.firma)}</div><div class="sm">${esc(r.faaliyet||'')}</div>`},{t:'Saha',r:r=>esc(r.saha)},{t:'Çalışan',r:r=>esc(r.calisanSayisi??'—')},{t:'Belgeler',r:r=>`${(r.belgeler||[]).length} / ${YUK_BELGE.length}`},{t:'Açık uygunsuzluk',r:r=>openU(r)?`<b style="color:var(--danger)">${openU(r)}</b>`:'0'},{t:'Son denetim',r:r=>fmtD(r.sonDenetim)},{t:'Durum',r:r=>badge(r.durum)}],rows,{open:'yuklenici',empty:'Kayıtlı yüklenici yok.'})}`;
 };
+
+/* ---------- Yüklenici personeli ve kapı kontrolü (yalnızca sunucu kurulumunda) ---------- */
+// Uygunluk kuralı sunucuda hesaplanır (/api/ypdurum, /api/gate); burada yalnızca sonuç gösterilir.
+function qrSvg(text){if(!window.qrcode)return '<span class="hint">QR yükleniyor…</span>';const q=window.qrcode(0,'M');q.addData(String(text));q.make();return `<span class="qrbox">${q.createSvgTag({cellSize:4,margin:1,scalable:true})}</span>`;}
+function qrLoad(){if(window.qrcode||S._qrLoading)return;S._qrLoading=1;loadScript('/vendor/qrcode.js').then(()=>scheduleRender()).catch(()=>{S._qrLoading=0;});}
+async function ypLoad(){S._ypAt=Date.now();try{S.yp=await api('GET','/api/ypdurum');scheduleRender();}catch(e){toast(errMsg(e),'err');}}
+const ypSt=id=>S.yp?.durum?.[id];
+const ypBadge=s=>!s?'<span class="badge">—</span>':s.ok?'<span class="badge b-ok">Çalışabilir</span>':'<span class="badge b-danger">Eksik</span>';
+const ypFirma=id=>S.data.yukleniciler.find(y=>y.id===id);
+VIEWS.ypersonel=()=>{
+  qrLoad();if(Date.now()-(S._ypAt||0)>60000)ypLoad();
+  const page='ypersonel';
+  let rows=applyF(S.data.ypersonel,page,['ad','gorev','kart',r=>ypFirma(r.firmaId)?.firma||'']);
+  const uy=F(page).uyg;if(uy)rows=rows.filter(r=>{const s=ypSt(r.id);return uy==='uygun'?!!s?.ok:!!s&&!s.ok;});
+  rows=[...rows].sort((a,b)=>String(a.ad).localeCompare(String(b.ad),'tr'));
+  const okN=S.data.ypersonel.filter(r=>ypSt(r.id)?.ok).length;
+  return `${ph('Yüklenici personeli','Personel kartları, belge geçerliliği ve çalışmaya uygunluk',`<button class="btn pri" data-a="newyp">${ic('plus')}Personel ekle</button>`)}
+  <div class="note info">TCKN tutulmaz; kapıda güvenlik görevlisi QR kodu okutur ve kimliği fiziksel olarak kontrol eder. Çalışabilir: kayıt aktif, zorunlu belgeler geçerli ve firma sözleşmesi sürüyor.</div>
+  ${fbar(page,{durum:['Aktif','Pasif'],extra:fsel(page,'uyg','Tüm uygunluklar',[{v:'uygun',t:'Çalışabilir'},{v:'eksik',t:'Eksik'}]),right:`<span class="count">${rows.length} kişi${S.yp?`, ${okN} çalışabilir`:''}</span>`})}
+  ${table([{t:'Ad soyad',r:r=>`<div class="ttl">${esc(r.ad)}</div><div class="sm">${esc(r.gorev||'')}</div>`},{t:'Firma',r:r=>esc(ypFirma(r.firmaId)?.firma||'—')},{t:'Kart no',r:r=>`<code>${esc(r.kart)}</code>`},
+   {t:'Uygunluk',r:r=>{const s=ypSt(r.id);return `${ypBadge(s)}${s&&!s.ok?`<div class="sm">${esc(s.nedenler[0])}${s.nedenler.length>1?` (+${s.nedenler.length-1})`:''}</div>`:''}`;}},
+   {t:'Kayıt',r:r=>r.durum==='Pasif'?'<span class="badge b-warn">Pasif</span>':'Aktif'}],rows,{open:'ypersonel',empty:'Kayıtlı yüklenici personeli yok.'})}`;
+};
+function openYpForm(rec){
+  const tipler=S.yp?.belgeTipleri;
+  if(!tipler){ypLoad();toast('Belge tipleri yüklenemedi. Birkaç saniye sonra tekrar deneyin.','err');return;}
+  const firmaOpts=()=>[...S.data.yukleniciler].sort((a,b)=>String(a.firma).localeCompare(String(b.firma),'tr')).map(y=>({v:y.id,t:y.firma}));
+  const fields=[{k:'ad',t:'Ad soyad',req:true,wide:true},{k:'firmaId',t:'Firma',type:'select',options:firmaOpts,req:true,help:'Firma listede yoksa önce Yükleniciler sayfasından ekleyin.'},{k:'gorev',t:'Görev'},{k:'durum',t:'Kayıt durumu',type:'select',options:['Aktif','Pasif'],req:true}];
+  const values={durum:'Aktif',...(rec||{})};
+  tipler.forEach((t,i)=>{fields.push({k:'b'+i,t:'',type:'toggle',lbl2:`${t.tip} mevcut`});if(t.sureli)fields.push({k:'d'+i,t:`${t.tip}: geçerlilik bitişi`,type:'date'});
+    const b=(rec?.belgeler||[]).find(x=>x.tip===t.tip);values['b'+i]=!!b;values['d'+i]=b?.bitis||'';});
+  openForm({title:rec?'Personeli düzenle':'Yüklenici personeli ekle',intro:'<div class="note info">TCKN girilmez. Kart kodu kayıt oluşturulunca otomatik verilir ve sonradan değişmez.</div>',fields,values,
+    onSubmit:async v=>{const belgeler=[];
+      tipler.forEach((t,i)=>{if(!v['b'+i])return;if(t.sureli&&!v['d'+i]){const e=new Error('d');e.userMsg=`${t.tip} için geçerlilik bitiş tarihini girin.`;throw e;}belgeler.push({tip:t.tip,bitis:t.sureli?v['d'+i]:''});});
+      const id=await saveRec('ypersonel',rec?.id,{ad:v.ad,firmaId:v.firmaId,gorev:v.gorev,durum:v.durum,belgeler},v.ad);
+      S._ypAt=0;ypLoad();toast('Personel kaydedildi.');if(!rec)openDrawer('ypersonel',id);}});
+}
+function ypCardPrint(rec){
+  if(!rec)return;if(!window.qrcode){qrLoad();toast('QR kütüphanesi yükleniyor, birkaç saniye sonra tekrar deneyin.','err');return;}
+  const h=document.createElement('div');h.id='cardPrint';
+  h.innerHTML=`<div class="pcard"><div class="pc-h">Galata Wind A.Ş. · Yüklenici Personel Kartı</div><div class="pc-b">${qrSvg(rec.kart)}<div><b>${esc(rec.ad)}</b><div>${esc(ypFirma(rec.firmaId)?.firma||'')}</div><div>${esc(rec.gorev||'')}</div><code>${esc(rec.kart)}</code></div></div><div class="pc-f">Kapıda fiziksel kimlik ibraz edilmelidir.</div></div>`;
+  document.body.appendChild(h);document.body.classList.add('print-card');
+  const done=()=>{document.body.classList.remove('print-card');h.remove();window.removeEventListener('afterprint',done);};
+  window.addEventListener('afterprint',done);setTimeout(()=>window.print(),50);
+}
+
+/* Kapı kontrolü: kamera (BarcodeDetector) ya da elle/okuyucuyla kart kodu girişi */
+const KAPI_TXT={uygun:{h:'ÇALIŞABİLİR',i:'check'},eksik:{h:'GİREMEZ',i:'x'},bulunamadi:{h:'KART TANINMADI',i:'x'},hata:{h:'SORGULANAMADI',i:'alert'}};
+VIEWS.kapi=()=>`${ph('Kapı kontrolü','Kartın QR kodunu okutun ya da kart kodunu girin. Her okuma kayda geçer.')}
+<div id="kapiHost" class="kapi">
+  <div id="kapiRes" class="kres" role="status" aria-live="assertive"></div>
+  <div class="kact">
+    <button class="btn pri" type="button" data-a="kapicam">${ic('qr')}Kamerayla okut</button>
+    <form id="kapiForm" class="kform" autocomplete="off"><label for="kapiKod" class="sr">Kart kodu</label><input id="kapiKod" maxlength="20" placeholder="Kart kodu (GWK-…)" autocapitalize="characters" spellcheck="false"><button class="btn" type="submit">Sorgula</button></form>
+  </div>
+  <div id="kapiCam" hidden><video id="kapiVid" playsinline muted></video><p><button class="btn" type="button" data-a="kapicamstop">Kamerayı kapat</button></p></div>
+  <div class="sec" id="kapiSec">Son okumalar</div><div id="kapiList"></div>
+</div>`;
+function kapiPaint(){
+  const k=S.ui.kapi,res=$('#kapiRes');if(!k||!res)return;const r=k.son;
+  if(!r){res.className='kres';res.innerHTML='<h2>Kartı okutun</h2><p>Sonuç burada görünür.</p>';}
+  else{const t=KAPI_TXT[r.sonuc]||KAPI_TXT.hata;res.className='kres '+(KAPI_TXT[r.sonuc]?r.sonuc:'hata');
+    res.innerHTML=`${ic(t.i)}<h2>${t.h}</h2>${r.ad?`<div class="kad">${esc(r.ad)}</div><div>${esc([r.gorev,r.firma].filter(Boolean).join(' · '))}</div>`:''}${r.sonuc==='uygun'?'<p><b>Kimliği fiziksel olarak kontrol edin.</b></p>':`<ul>${(r.nedenler||[]).map(n=>`<li>${esc(n)}</li>`).join('')}</ul>`}`;}
+  const list=k.gun||k.liste;$('#kapiSec').textContent=k.gun?'Bugünkü okumalar':'Son okumalar';
+  $('#kapiList').innerHTML=list.length?`<div class="tbl-wrap"><table class="tbl"><thead><tr><th scope="col">Saat</th><th scope="col">Sonuç</th><th scope="col">Personel</th><th scope="col">Firma</th></tr></thead><tbody>${list.map(x=>`<tr><td data-l="Saat">${esc(new Date(x.ts).toLocaleTimeString('tr-TR'))}</td><td data-l="Sonuç">${esc((KAPI_TXT[x.sonuc]||KAPI_TXT.hata).h)}</td><td data-l="Personel">${esc(x.ad||'—')}</td><td data-l="Firma">${esc(x.firma||'—')}</td></tr>`).join('')}</tbody></table></div>`:'<p class="hint">Henüz okuma yok.</p>';
+}
+async function kapiGunYukle(){try{const j=await api('GET','/api/gate');if(S.ui.kapiOn&&S.ui.kapi){S.ui.kapi.gun=j.okumalar||[];kapiPaint();}}catch(e){}}
+async function kapiSorgu(kod){
+  if(S.ui.kapiBusy||!S.ui.kapi)return;S.ui.kapiBusy=1;const k=S.ui.kapi;
+  try{const r=await api('POST','/api/gate',{kod});k.son=r;k.liste=[r,...k.liste].slice(0,20);}
+  catch(e){k.son={sonuc:'hata',nedenler:[(e&&e.userMsg)||'Sunucuya ulaşılamadı. Kapıyı açmadan önce İSG ile iletişime geçin.']};}
+  finally{S.ui.kapiBusy=0;}
+  try{navigator.vibrate&&navigator.vibrate(k.son.sonuc==='uygun'?80:[200,100,200]);}catch(e){}
+  kapiPaint();if(isRole('isg'))kapiGunYukle();
+}
+function mountKapi(){
+  S.ui.kapiOn=true;S.ui.kapi={son:null,liste:[],gun:null};kapiPaint();
+  $('#kapiForm').addEventListener('submit',e=>{e.preventDefault();const i=$('#kapiKod');const v=i.value.trim();i.value='';if(v)kapiSorgu(v);i.focus();});
+  $('#kapiKod').focus();if(isRole('isg'))kapiGunYukle();
+}
+async function kapiCam(){
+  if(!('BarcodeDetector' in window)){toast('Bu tarayıcı kamerayla QR okumayı desteklemiyor. Kart kodunu elle girin ya da USB/Bluetooth okuyucu kullanın.','err');return;}
+  if(S.ui.kapiStream)return;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment'},audio:false});
+    if(!S.ui.kapiOn){stream.getTracks().forEach(t=>t.stop());return;}
+    S.ui.kapiStream=stream;const v=$('#kapiVid');v.srcObject=stream;await v.play();$('#kapiCam').hidden=false;
+    const det=new BarcodeDetector({formats:['qr_code']});
+    const tick=async()=>{if(S.ui.kapiStream!==stream)return;
+      try{const c=await det.detect(v);const kod=c[0]&&String(c[0].rawValue||'').trim().toUpperCase();const now=Date.now();
+        if(kod&&(kod!==S.ui.kapiLast||now-(S.ui.kapiLastAt||0)>4000)){S.ui.kapiLast=kod;S.ui.kapiLastAt=now;kapiSorgu(kod);}}catch(e){}
+      S.ui.kapiRaf=setTimeout(tick,250);};
+    tick();
+  }catch(e){toast('Kameraya erişilemedi. Tarayıcı izinlerini kontrol edin.','err');}
+}
+function kapiCamStop(){const s=S.ui.kapiStream;S.ui.kapiStream=null;clearTimeout(S.ui.kapiRaf);if(s)s.getTracks().forEach(t=>t.stop());const c=$('#kapiCam');if(c)c.hidden=true;}
+function kapiStop(){kapiCamStop();S.ui.kapiOn=false;}
 
 /* ---------- İSG kontrol formları (public/isg: form motoru + form tanımları) ---------- */
 VIEWS.formlar=()=>`${ph('Kontrol formları','İSG.P1 kontrol formlarını doldurun. Tamamlanan kayıtlar portalda tutulur; PDF çıktısını alıp ıslak imzalayın.',S.ui.formId?`<a class="btn" href="#/formlar">${ic('grid')}Tüm formlar</a>`:'')}<div id="formHost" class="isg-app" aria-live="polite"><p class="hint">Formlar yükleniyor…</p></div>`;
@@ -1355,9 +1478,14 @@ iso(r){const canIsg=isRole('isg');const revs=[...(r.revizyonlar||[])].map((v,i)=
    <div class="sec">Belgeler</div><ul class="list" style="margin:0 -20px">${YUK_BELGE.map(b=>`<li><div><div class="m">${esc(b)}</div>${(r.belgeler||[]).includes(b)?badge('Tamam'):'<span class="badge b-warn">Eksik</span>'}</div></li>`).join('')}</ul>
    <div class="sec">Uygunsuzluklar</div>${(r.uygunsuzluklar||[]).length?`<ul class="list" style="margin:0 -20px">${[...r.uygunsuzluklar].map((u,i)=>({...u,i})).sort((a,b)=>String(b.tarih).localeCompare(String(a.tarih))).map(u=>`<li><div><div class="m"><b>${esc(u.aciklama)}</b><small>${fmtD(u.tarih)}</small></div>${u.durum==='Kapandı'?badge('Kapandı'):canIsg?`<button class="btn sm" data-a="uygKapat" data-id="${r.id}" data-i="${u.i}">Kapat</button>`:badge('Açık')}</div></li>`).join('')}</ul>`:'<p class="hint">Kayıtlı uygunsuzluk yok.</p>'}${histFor(r.id)}`,
    foot:canIsg?`<button class="btn pri" data-a="uygEkle" data-id="${r.id}">${ic('plus')}Uygunsuzluk ekle</button><button class="btn" data-a="edityuk" data-id="${r.id}">${ic('edit')}Düzenle</button><button class="btn danger" data-a="del" data-coll="yukleniciler" data-id="${r.id}">${ic('trash')}Sil</button>`:''};},
+ ypersonel(r){const s=ypSt(r.id),f=ypFirma(r.firmaId);qrLoad();return {no:esc(r.kart),title:r.ad,tags:ypBadge(s),body:`${kv([['Firma',esc(f?.firma||'—')],['Görev',esc(r.gorev||'—')],['Kayıt durumu',esc(r.durum)],['Firma sözleşme bitişi',fmtD(f?.sozlesmeBitis)]])}
+   ${s&&!s.ok?`<div class="note danger"><b>Neden eksik?</b><ul style="margin:6px 0 0;padding-left:18px">${s.nedenler.map(n=>`<li>${esc(n)}</li>`).join('')}</ul></div>`:''}
+   <div class="sec">Belgeler</div><ul class="list" style="margin:0 -20px">${(S.yp?.belgeTipleri||[]).map(t=>{const b=(r.belgeler||[]).find(x=>x.tip===t.tip);return `<li><div><div class="m">${esc(t.tip)}${b&&t.sureli?`<small>Geçerlilik bitişi: ${fmtD(b.bitis)}</small>`:''}</div>${b?'<span class="badge b-ok">Var</span>':'<span class="badge b-warn">Eksik</span>'}</div></li>`;}).join('')}</ul>
+   <div class="sec">Personel kartı</div><div class="cardqr">${qrSvg(r.kart)}<div><code>${esc(r.kart)}</code><p class="hint">Kapıda bu QR okutulur; güvenlik görevlisi ayrıca fiziksel kimlik kontrolü yapar.</p></div></div>${histFor(r.id)}`,
+   foot:`<button class="btn pri" data-a="ypcard" data-id="${r.id}">${ic('file')}Kartı yazdır</button><button class="btn" data-a="editypers" data-id="${r.id}">${ic('edit')}Düzenle</button><button class="btn danger" data-a="del" data-coll="ypersonel" data-id="${r.id}">${ic('trash')}Sil</button>`};},
  user(r){return {no:esc(r.username),title:r.ad,tags:`<span class="badge b-info">${ROLES[r.rol]}</span>`,body:kv([['Ekip',esc(r.ekip)],['Saha',esc(r.saha||'—')],['E-posta',esc(r.eposta)]])+histFor(r.id),foot:`<button class="btn pri" data-a="edituser" data-id="${r.id}">${ic('edit')}Düzenle</button>${r.username!==S.user.username?`<button class="btn danger" data-a="del" data-coll="kullanicilar" data-id="${r.id}">${ic('trash')}Sil</button>`:''}`};}
 };
-const KIND_COLL={bildirim:'bildirimler',dof:'dof',risk:'risk',egitim:'egitimler',kkd:'kkd',dokuman:'dokumanlar',iso:'iso45001',duyuru:'duyurular',yuklenici:'yukleniciler',user:'kullanicilar'};
+const KIND_COLL={bildirim:'bildirimler',dof:'dof',risk:'risk',egitim:'egitimler',kkd:'kkd',dokuman:'dokumanlar',iso:'iso45001',duyuru:'duyurular',yuklenici:'yukleniciler',ypersonel:'ypersonel',user:'kullanicilar'};
 function renderOverlay(){
   const o=$('#overlay');const d=S.ui.drawer;const modalOpen=!!o.querySelector('.modal');
   let dh='';
@@ -1607,7 +1735,7 @@ const A={
   isodlrev:async el=>{const r=S.data.iso45001.find(x=>x.id===el.dataset.id);const rev=(r.revizyonlar||[])[+el.dataset.i];const f=rev?.dosya?.[0];if(f){await saveFile(f.ad,dataURLtoBlob(f.veri));audit('İndirme','iso45001',r.id,`${r.kod||r.ad} Rev.${rev.no}`);}},
   newduyuru:()=>openDuyuruForm(),editduyuru:el=>openDuyuruForm(S.data.duyurular.find(x=>x.id===el.dataset.id)),
   newacil:()=>openAcilForm(),editacil:el=>openAcilForm(S.data.acil.find(x=>x.id===el.dataset.id)),
-  newyuk:()=>openYukForm(),edityuk:el=>openYukForm(S.data.yukleniciler.find(x=>x.id===el.dataset.id)),
+  newyuk:()=>openYukForm(),newyp:()=>openYpForm(),editypers:el=>openYpForm(S.data.ypersonel.find(x=>x.id===el.dataset.id)),ypcard:el=>ypCardPrint(S.data.ypersonel.find(x=>x.id===el.dataset.id)),kapicam:()=>kapiCam(),kapicamstop:()=>kapiCamStop(),edityuk:el=>openYukForm(S.data.yukleniciler.find(x=>x.id===el.dataset.id)),
   uygEkle:el=>{const r=S.data.yukleniciler.find(x=>x.id===el.dataset.id);openForm({title:`${r.firma}: uygunsuzluk ekle`,fields:[{k:'aciklama',t:'Uygunsuzluk',type:'textarea',req:true,wide:true},{k:'tarih',t:'Tespit tarihi',type:'date',req:true}],values:{tarih:today()},onSubmit:async v=>{await patchRec('yukleniciler',r.id,{uygunsuzluklar:[...(r.uygunsuzluklar||[]),{...v,durum:'Açık'}]},'Uygunsuzluk eklendi',`${r.firma}: ${v.aciklama.slice(0,60)}`);toast('Uygunsuzluk kaydedildi.');}});},
   uygKapat:async el=>{const r=S.data.yukleniciler.find(x=>x.id===el.dataset.id);const u=(r.uygunsuzluklar||[]).map((x,i)=>i===+el.dataset.i?{...x,durum:'Kapandı',kapanis:today()}:x);try{await patchRec('yukleniciler',r.id,{uygunsuzluklar:u},'Uygunsuzluk kapatıldı',r.firma);}catch(e){toast(errMsg(e),'err');}},
   newuser:()=>openUserForm(),edituser:el=>openUserForm(S.data.kullanicilar.find(x=>x.id===el.dataset.id)),

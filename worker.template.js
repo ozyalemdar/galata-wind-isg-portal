@@ -12,12 +12,13 @@
 const INDEX_HTML = /*__INDEX_HTML__*/null;
 
 const DOC_COLLS = new Set(['bildirimler', 'dof', 'risk', 'egitimler', 'kkd', 'dokumanlar', 'iso45001',
-  'duyurular', 'acil', 'yukleniciler', 'kullanicilar', 'ayarlar', 'videoegitim', 'videoilerleme']);
+  'duyurular', 'acil', 'yukleniciler', 'kullanicilar', 'ayarlar', 'videoegitim', 'videoilerleme', 'ypersonel']);
 const LOG_KINDS = new Set(['audit', 'eposta']);
 // Tamamlanmış İSG form kayıtları: DOC_COLLS dışında; /api/data ile herkese dağıtılmaz, /api/form üzerinden okunur
 const FORM_COLL = 'formkayitlari';
 // saha: sahada çalışan (Çalışan yetkileri + kendi sahasındaki kontrol formu kayıtlarını paylaşma)
-const ROLES = ['calisan', 'saha', 'yonetici', 'isg'];
+// guvenlik: kapı görevlisi (yalnızca kapı sorgusu)
+const ROLES = ['calisan', 'saha', 'yonetici', 'isg', 'guvenlik'];
 const TUR_PREFIX = { ramak: 'RK', tehlike: 'TH', kaza: 'KZ' };
 const NUMBERED = { dof: 'DOF', risk: 'RD' };           // bildirimler: türe göre
 const BIL_DURUM = ['Yeni', 'İnceleniyor', 'DÖF Açıldı', 'Kapatıldı'];
@@ -32,7 +33,7 @@ const LOG_DAYS = 45;
 const SEC_HEADERS = {
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://www.youtube.com",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "img-src 'self' data: blob:",
@@ -40,6 +41,8 @@ const SEC_HEADERS = {
     "worker-src 'self' blob:",
     // Video eğitimleri dış bağlantıdan (https) oynatılır
     "media-src 'self' https:",
+    // YouTube videoları gizlilik odaklı gömme adresiyle (youtube-nocookie) oynatılır
+    "frame-src https://www.youtube-nocookie.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
@@ -154,6 +157,7 @@ async function userIndex(env) {
 }
 function canSee(u, coll, d, ekipOf) {
   if (u.rol === 'isg') return true;
+  if (u.rol === 'guvenlik') return false;   // güvenlik rolü yalnızca /api/gate kullanır
   const me = u.username, mgr = u.rol === 'yonetici';
   switch (coll) {
     case 'bildirimler': return d.bildiren === me || (mgr && !!u.ekip && d.ekip === u.ekip);
@@ -162,6 +166,7 @@ function canSee(u, coll, d, ekipOf) {
     case 'kkd':
     case VIDEO_PROG: return d.u === me || (mgr && !!u.ekip && ekipOf(d.u) === u.ekip);
     case FORM_COLL: return false;   // formVisible() ile, yalnızca /api/form üzerinden
+    case YP_COLL: return false;     // yüklenici personeli yalnızca İSG'ye açık
     default: return true;
   }
 }
@@ -185,6 +190,7 @@ async function visibleMap(env, u, ekipOf) {
 function authorize(u, coll, old, data) {
   const me = u.username, mgr = u.rol === 'yonetici';
   if (u.rol === 'isg') {
+    if (coll === YP_COLL) return cleanPersonel(data, old);
     const rec = { ...data };
     if (coll === 'bildirimler') {
       if (!old) {
@@ -259,8 +265,8 @@ async function getData(env, u, url) {
   }
 
   const lr = (logSince
-    ? await env.DB.prepare('SELECT id, kind, gun, data FROM logs WHERE id > ?1 ORDER BY id LIMIT 5000').bind(logSince).all()
-    : await env.DB.prepare('SELECT id, kind, gun, data FROM logs WHERE gun >= ?1 ORDER BY id DESC LIMIT 20000').bind(trDate(now - LOG_DAYS * 864e5)).all()
+    ? await env.DB.prepare('SELECT id, kind, gun, data FROM logs WHERE id > ?1 AND kind <> \'kapi\' ORDER BY id LIMIT 5000').bind(logSince).all()
+    : await env.DB.prepare('SELECT id, kind, gun, data FROM logs WHERE gun >= ?1 AND kind <> \'kapi\' ORDER BY id DESC LIMIT 20000').bind(trDate(now - LOG_DAYS * 864e5)).all()
   ).results;
   let lastLog = logSince, vis = null;
   const logs = [];
@@ -409,6 +415,110 @@ async function deleteForm(env, u, no) {
   if (!r.meta.changes) throw new HttpError(404, 'Kayıt bulunamadı.');
   await writeAudit(env, { u: u.username, islem: 'Silme', coll: FORM_COLL, kayit: no, detay: str(no, 160) });
   return json({ ok: true });
+}
+
+/* ---------------- yüklenici personeli ve kapı kontrolü ---------------- */
+// ypersonel: yüklenici firma personeli. TCKN tutulmaz; kapıda güvenlik görevlisi fiziksel kimlik kontrolü yapar.
+// Kart kodu yalnızca sunucuda üretilir ve sonradan değişmez. Uygunluk kuralı yalnızca burada (evalPersonel) hesaplanır;
+// arayüz sonucu /api/ypdurum ve /api/gate yanıtlarından gösterir. Kapı okumaları logs tablosuna kind='kapi' ile yalnızca eklenir.
+// TODO: doğrulanacak: zorunlu personel belgeleri ve hangilerinin süreli olduğu İSG departmanınca onaylanmalı.
+const YP_COLL = 'ypersonel';
+const YP_BELGE = [
+  { tip: 'SGK İşe Giriş Bildirgesi', sureli: false },
+  { tip: 'Sağlık Raporu', sureli: true },
+  { tip: 'İSG Eğitim Belgesi', sureli: true },
+];
+const KART_RE = /^GWK-[A-HJ-NP-Z2-9]{10}$/;       // 32 karakterlik alfabe: I, O, 0, 1 yok
+const KART_ABC = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+const trTarih = s => String(s || '').split('-').reverse().join('.');
+function newKart() {
+  const b = crypto.getRandomValues(new Uint8Array(10));
+  return 'GWK-' + Array.from(b, x => KART_ABC[x % 32]).join('');   // 256 % 32 = 0: sapma yok
+}
+function cleanPersonel(data, old) {
+  const out = {
+    ad: str(data.ad, 120).trim(),
+    firmaId: str(data.firmaId, 120),
+    gorev: str(data.gorev, 120).trim(),
+    durum: data.durum === 'Pasif' ? 'Pasif' : 'Aktif',
+    kart: old && KART_RE.test(old.kart || '') ? old.kart : newKart(),
+    belgeler: [],
+  };
+  if (!out.ad) throw new HttpError(400, 'Ad soyad gerekli.');
+  if (!out.firmaId) throw new HttpError(400, 'Firma seçin.');
+  const seen = new Set();
+  for (const b of Array.isArray(data.belgeler) ? data.belgeler : []) {
+    const t = YP_BELGE.find(x => b && x.tip === b.tip);
+    if (!t || seen.has(t.tip)) continue;
+    seen.add(t.tip);
+    const bitis = str(b.bitis, 10);
+    if (t.sureli && !DATE_RE.test(bitis)) throw new HttpError(400, `${t.tip} için geçerlilik bitiş tarihi gerekli.`);
+    out.belgeler.push({ tip: t.tip, bitis: t.sureli ? bitis : '' });
+  }
+  return out;
+}
+// Çalışmaya uygun: kayıt aktif + zorunlu belgelerin hepsi var ve süresi dolmamış + bağlı firmanın sözleşmesi sürüyor.
+// Tarihler YYYY-MM-DD olduğundan metin karşılaştırması doğrudur; bitiş günü dahil geçerlidir.
+function evalPersonel(p, firma, bugun) {
+  const n = [];
+  if (p.durum !== 'Aktif') n.push('Personel kaydı pasif.');
+  for (const t of YP_BELGE) {
+    const b = (p.belgeler || []).find(x => x.tip === t.tip);
+    if (!b) n.push(`${t.tip} eksik.`);
+    else if (t.sureli && (!DATE_RE.test(b.bitis || '') || b.bitis < bugun)) n.push(`${t.tip} süresi dolmuş${b.bitis ? ' (' + trTarih(b.bitis) + ')' : ''}.`);
+  }
+  if (!firma) n.push('Bağlı firma kaydı bulunamadı.');
+  else if (firma.durum === 'Askıda') n.push('Firma askıya alınmış.');
+  else if (!DATE_RE.test(firma.sozlesmeBitis || '')) n.push('Firmanın sözleşme bitiş tarihi girilmemiş.');
+  else if (firma.sozlesmeBitis < bugun) n.push(`Firma sözleşmesi sona ermiş (${trTarih(firma.sozlesmeBitis)}).`);
+  return { ok: n.length === 0, nedenler: n };
+}
+async function ypDurum(env, u) {
+  if (u.rol !== 'isg') deny();
+  const bugun = trDate();
+  const [pr, fr] = await Promise.all([
+    env.DB.prepare('SELECT id, data FROM docs WHERE coll = ?1 AND deleted = 0').bind(YP_COLL).all(),
+    env.DB.prepare("SELECT id, data FROM docs WHERE coll = 'yukleniciler' AND deleted = 0").all(),
+  ]);
+  const firmalar = new Map(fr.results.map(r => [r.id, parse(r.data)]));
+  const durum = {};
+  for (const r of pr.results) {
+    const p = parse(r.data);
+    if (p) durum[r.id] = evalPersonel(p, firmalar.get(p.firmaId), bugun);
+  }
+  return json({ ok: true, belgeTipleri: YP_BELGE, durum });
+}
+async function postGate(env, u, body) {
+  if (u.rol !== 'guvenlik' && u.rol !== 'isg') deny('Kapı kontrolü yetkiniz yok.');
+  const kod = String((body && body.kod) || '').trim().toUpperCase();
+  const now = Date.now(), ts = new Date(now).toISOString();
+  let sonuc = 'bulunamadi', nedenler = ['Kart tanınmadı. Kodu kontrol edin.'], pid = '', p = null, firmaAd = '';
+  if (KART_RE.test(kod)) {
+    const row = await env.DB.prepare("SELECT id, data FROM docs WHERE coll = ?1 AND deleted = 0 AND json_extract(data, '$.kart') = ?2 LIMIT 1").bind(YP_COLL, kod).first();
+    p = row && parse(row.data);
+    if (p) {
+      pid = row.id;
+      const fr = await env.DB.prepare("SELECT data FROM docs WHERE coll = 'yukleniciler' AND id = ?1 AND deleted = 0").bind(String(p.firmaId || '')).first();
+      const firma = fr && parse(fr.data);
+      firmaAd = firma ? str(firma.firma, 120) : '';
+      const r = evalPersonel(p, firma, trDate(now));
+      sonuc = r.ok ? 'uygun' : 'eksik';
+      nedenler = r.nedenler;
+    }
+  }
+  const out = {
+    ts, sonuc, nedenler, kod: p ? kod : '', personelId: pid, ad: p ? str(p.ad, 120) : '', gorev: p ? str(p.gorev, 120) : '', firma: firmaAd, okutan: u.username,
+  };
+  await env.DB.prepare('INSERT INTO logs (kind, ts, gun, data) VALUES (?1, ?2, ?3, ?4)').bind('kapi', ts, trDate(now), JSON.stringify(out)).run();
+  return json({ ok: true, ...out });
+}
+async function listGate(env, u, url) {
+  if (u.rol !== 'isg') deny();
+  const g = url.searchParams.get('gun') || '';
+  const gun = DATE_RE.test(g) ? g : trDate();
+  const { results } = await env.DB.prepare("SELECT data FROM logs WHERE kind = 'kapi' AND gun = ?1 ORDER BY id DESC LIMIT 500").bind(gun).all();
+  return json({ ok: true, gun, okumalar: results.map(r => parse(r.data)).filter(Boolean) });
 }
 
 /* ---------------- video eğitimleri ---------------- */
@@ -707,6 +817,8 @@ async function handleApi(req, env, url) {
   if (!u) return fail(403, 'Hesabınız portal kullanıcı listesinde yok. Erişim için İSG departmanına başvurun.', { email });
 
   const p = url.pathname.split('/').filter(Boolean).map(decodeURIComponent); // ['api', ...]
+  // Güvenlik rolü yalnızca oturum bilgisi ve kapı kontrolü uçlarını kullanabilir
+  if (u.rol === 'guvenlik' && !['me', 'data', 'gate'].includes(p[1])) deny();
   if (p[1] === 'me' && req.method === 'GET') return json({ user: u });
   if (p[1] === 'data' && req.method === 'GET') return getData(env, u, url);
   if (p[1] === 'doc' && p.length === 4) {
@@ -721,6 +833,9 @@ async function handleApi(req, env, url) {
     if (p.length === 2 && req.method === 'POST') return createForm(env, u, await readBody(req));
     if (p.length === 3 && req.method === 'DELETE' && /^[A-Z0-9-]{8,60}$/.test(p[2])) return deleteForm(env, u, p[2]);
   }
+  if (p[1] === 'gate' && p.length === 2 && req.method === 'POST') return postGate(env, u, await readBody(req));
+  if (p[1] === 'gate' && p.length === 2 && req.method === 'GET') return listGate(env, u, url);
+  if (p[1] === 'ypdurum' && p.length === 2 && req.method === 'GET') return ypDurum(env, u);
   if (p[1] === 'video' && p.length === 2 && req.method === 'POST') return postVideo(env, u, await readBody(req));
   if (p[1] === 'log' && p.length === 3 && req.method === 'POST') {
     if (!LOG_KINDS.has(p[2])) return fail(404, 'Bilinmeyen kayıt türü.');
